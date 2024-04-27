@@ -1,0 +1,14 @@
+[package]
+name = "genero"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "genero"
+path = "src/main.rs"
+
+[dependencies]
+glutin = "0.24"
+glium = "0.28"
+nalgebra = "0.26"
+cgmath = "0.17"
