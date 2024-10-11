@@ -9,6 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 glutin = "0.24"
-glium = "0.28"
-nalgebra = "0.26"
+glium = "0.31"
+nalgebra = "0.28.0"
 cgmath = "0.17"
