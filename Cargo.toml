@@ -1,10 +1,10 @@
 [package]
-name = "genero"
+name = "mutetra"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "genero"
+name = "mutetra"
 path = "src/main.rs"
 
 [dependencies]

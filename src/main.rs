@@ -1,4 +1,5 @@
-use glium::{Display, Surface, Program, implement_vertex, uniform};
+use glium::{Display, Program, Surface, implement_vertex, uniform, VertexBuffer, IndexBuffer};
+use glium::index::PrimitiveType;
 use glium::glutin::{event::{Event, WindowEvent, VirtualKeyCode, ElementState}, 
 event_loop::{ControlFlow, EventLoop}, ContextBuilder, GlProfile, GlRequest, window::WindowBuilder};
 use nalgebra::{Matrix4, Perspective3};
@@ -7,38 +8,95 @@ use std::collections::HashSet;
 use std::time::Instant;
 use glium::glutin::window::Fullscreen;
 
+#[derive(Copy, Clone)]
+struct Vertex {
+    position: [f32; 3],
+}
+
+implement_vertex!(Vertex, position);
+
+#[derive(Copy, Clone)]
+struct Instance {
+    instance_position: [f32; 3],
+}
+
+implement_vertex!(Instance, instance_position);
+
+struct Cube {
+    position: [f32; 3],
+}
+
+impl Cube {
+    fn vertices() -> Vec<Vertex> {
+        vec![
+            Vertex { position: [-0.5, -0.5, -0.5] },
+            Vertex { position: [0.5, -0.5, -0.5] },
+            Vertex { position: [0.5, 0.5, -0.5] },
+            Vertex { position: [-0.5, 0.5, -0.5] },
+            Vertex { position: [-0.5, -0.5, 0.5] },
+            Vertex { position: [0.5, -0.5, 0.5] },
+            Vertex { position: [0.5, 0.5, 0.5] },
+            Vertex { position: [-0.5, 0.5, 0.5] }
+        ]
+    }
+
+    fn indices() -> Vec<u16> {
+        vec![
+            0, 1, 2, 3,    // Front face
+            7, 6, 5, 4,    // Back face
+            0, 4, 5, 1,    // Bottom face
+            3, 2, 6, 7,    // Top face
+            1, 5, 6, 2,    // Right face
+            4, 0, 3, 7     // Left face
+        ]
+    }
+}
+
 fn main() {
     let event_loop = EventLoop::new();
     let primary_monitor = event_loop.primary_monitor().unwrap();
     let window = WindowBuilder::new()
         .with_title("Mutetra")
         .with_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
-    let context = ContextBuilder::new().with_gl(GlRequest::Latest).with_gl_profile(GlProfile::Core);
+
+    let context = ContextBuilder::new()
+        .with_gl(GlRequest::Latest)
+        .with_gl_profile(GlProfile::Core);
+
     let display = Display::new(window, context, &event_loop).unwrap();
 
-    #[derive(Copy, Clone)]
-    struct Vertex {
-        position: [f32; 3],
+    let mut cubes = Vec::new();
+
+    // Set up cube positions
+    for x in 0..10 {
+        for z in 0..10 {
+            cubes.push(Cube { position: [x as f32, 0.0, z as f32] });
+        }
+    }
+    for x in 0..10 {
+        cubes.push(Cube { position: [x as f32, 0.0, 0.0] });
+        cubes.push(Cube { position: [x as f32, 0.0, 9.0] });
+    }
+    for z in 0..10 {
+        cubes.push(Cube { position: [0.0, 0.0, z as f32] });
+        cubes.push(Cube { position: [9.0, 0.0, z as f32] });
     }
 
-    implement_vertex!(Vertex, position);
+    // Load vertices and indices for a single cube
+    let vertex_buffer = VertexBuffer::new(&display, &Cube::vertices()).unwrap();
+    let index_buffer = IndexBuffer::new(&display, PrimitiveType::LineLoop, &Cube::indices()).unwrap();
 
-    let shape = vec![
-        Vertex { position: [-0.5, -0.5, -0.5] },
-        Vertex { position: [0.5, -0.5, -0.5] },
-        Vertex { position: [0.5, 0.5, -0.5] },
-        Vertex { position: [-0.5, 0.5, -0.5] },
-        // Other cube faces...
-    ];
-
-    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleFan);
+    // Create an instance buffer for cube positions
+    let instance_positions: Vec<Instance> = cubes.iter().map(|c| Instance { instance_position: c.position }).collect();
+    let instance_buffer = VertexBuffer::new(&display, &instance_positions).unwrap();
 
     let program = Program::from_source(&display, "
         #version 140
         in vec3 position;
+        in vec3 instance_position;
         uniform mat4 matrix;
         void main() {
-            gl_Position = matrix * vec4(position, 1.0);
+            gl_Position = matrix * vec4(position + instance_position, 1.0);
         }
     ", "
         #version 140
@@ -51,11 +109,9 @@ fn main() {
     let mut player_position = [0.0, 0.0, -2.0_f32];
     let perspective = Perspective3::new(4.0 / 3.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0);
 
-    // Mouse look variables
     let mut pitch: f32 = 0.0;
     let mut yaw: f32 = 0.0;
 
-    // Key state and timing
     let mut pressed_keys = HashSet::new();
     let mut last_update = Instant::now();
 
@@ -101,7 +157,7 @@ fn main() {
             _ => (),
         }
 
-        let move_speed = 2.0; // Adjust speed as desired
+        let move_speed = 2.0;
         let move_distance = move_speed * elapsed.as_secs_f32();
 
         let mut forward = nalgebra::Vector3::new(yaw.sin(), 0.0, -yaw.cos());
@@ -146,7 +202,8 @@ fn main() {
             matrix: <[[f32; 4]; 4]>::from(perspective.to_homogeneous() * view),
         };
 
-        target.draw(&glium::VertexBuffer::new(&display, &shape).unwrap(), &indices, &program, &uniforms, &Default::default()).unwrap();
+        target.draw((&vertex_buffer, instance_buffer.per_instance().unwrap()), &index_buffer, &program, &uniforms, &Default::default()).unwrap();
+
         target.finish().unwrap();
     });
 }

@@ -445,16 +445,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
-name = "genero"
-version = "0.1.0"
-dependencies = [
- "cgmath",
- "glium",
- "glutin 0.24.1",
- "nalgebra",
-]
-
-[[package]]
 name = "gimli"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -873,6 +863,16 @@ dependencies = [
  "net2",
  "winapi 0.2.8",
  "ws2_32-sys",
+]
+
+[[package]]
+name = "mutetra"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "glium",
+ "glutin 0.24.1",
+ "nalgebra",
 ]
 
 [[package]]
