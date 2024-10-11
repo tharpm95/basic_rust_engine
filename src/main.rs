@@ -1,7 +1,10 @@
 use glium::{Display, Surface, Program, implement_vertex, uniform};
-use glium::glutin::{event::{Event, WindowEvent, VirtualKeyCode, ElementState}, event_loop::{ControlFlow, EventLoop}, ContextBuilder, GlProfile, GlRequest, window::WindowBuilder};
+use glium::glutin::{event::{Event, WindowEvent, VirtualKeyCode, ElementState}, 
+event_loop::{ControlFlow, EventLoop}, ContextBuilder, GlProfile, GlRequest, window::WindowBuilder};
 use nalgebra::{Matrix4, Perspective3};
-use glium::glutin::event::DeviceEvent; // Import for capturing mouse motion events
+use glium::glutin::event::DeviceEvent;
+use std::collections::HashSet;
+use std::time::Instant;
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -18,9 +21,9 @@ fn main() {
 
     let shape = vec![
         Vertex { position: [-0.5, -0.5, -0.5] },
-        Vertex { position: [ 0.5, -0.5, -0.5] },
-        Vertex { position: [ 0.5,  0.5, -0.5] },
-        Vertex { position: [-0.5,  0.5, -0.5] },
+        Vertex { position: [0.5, -0.5, -0.5] },
+        Vertex { position: [0.5, 0.5, -0.5] },
+        Vertex { position: [-0.5, 0.5, -0.5] },
         // Other cube faces...
     ];
 
@@ -44,37 +47,39 @@ fn main() {
     let mut player_position = [0.0, 0.0, -2.0_f32];
     let perspective = Perspective3::new(4.0 / 3.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0);
 
-    // For mouse look
+    // Mouse look variables
     let mut pitch: f32 = 0.0;
     let mut yaw: f32 = 0.0;
 
+    // Key state and timing
+    let mut pressed_keys = HashSet::new();
+    let mut last_update = Instant::now();
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
+        let elapsed = last_update.elapsed();
+        last_update = Instant::now();
+
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 WindowEvent::Focused(true) => {
-                    let gl_window = display.gl_window(); // Get a more persistent reference
+                    let gl_window = display.gl_window();
                     let window = gl_window.window();
                     window.set_cursor_grab(true).unwrap_or_else(|_| println!("Unable to grab cursor"));
                     window.set_cursor_visible(false);
                 }
                 WindowEvent::Focused(false) => {
-                    let gl_window = display.gl_window(); // Get a more persistent reference
+                    let gl_window = display.gl_window();
                     let window = gl_window.window();
                     window.set_cursor_grab(false).unwrap_or_else(|_| println!("Unable to release cursor"));
                     window.set_cursor_visible(true);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if let Some(key) = input.virtual_keycode {
-                        if input.state == ElementState::Pressed {
-                            match key {
-                                VirtualKeyCode::W => player_position[2] += 0.1,
-                                VirtualKeyCode::S => player_position[2] -= 0.1,
-                                VirtualKeyCode::A => player_position[0] -= 0.1,
-                                VirtualKeyCode::D => player_position[0] += 0.1,
-                                _ => (),
-                            }
+                        match input.state {
+                            ElementState::Pressed => { pressed_keys.insert(key); },
+                            ElementState::Released => { pressed_keys.remove(&key); },
                         }
                     }
                 },
@@ -91,7 +96,23 @@ fn main() {
             },
             _ => (),
         }
-        
+
+        let move_speed = 2.0; // Adjust speed as desired
+        let move_distance = move_speed * elapsed.as_secs_f32();
+
+        if pressed_keys.contains(&VirtualKeyCode::W) {
+            player_position[2] += move_distance;
+        }
+        if pressed_keys.contains(&VirtualKeyCode::S) {
+            player_position[2] -= move_distance;
+        }
+        if pressed_keys.contains(&VirtualKeyCode::A) {
+            player_position[0] -= move_distance;
+        }
+        if pressed_keys.contains(&VirtualKeyCode::D) {
+            player_position[0] += move_distance;
+        }
+
         let direction = nalgebra::Vector3::new(
             yaw.cos() * pitch.cos(),
             pitch.sin(),
