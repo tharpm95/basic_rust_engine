@@ -1,19 +1,22 @@
-use glium::{Display, Program, Surface, implement_vertex, uniform, VertexBuffer, IndexBuffer};
+use glium::{Display, Program, Surface, implement_vertex, uniform, VertexBuffer, IndexBuffer, texture::Texture2d};
 use glium::index::PrimitiveType;
 use glium::glutin::{event::{Event, WindowEvent, VirtualKeyCode, ElementState}, 
 event_loop::{ControlFlow, EventLoop}, ContextBuilder, GlProfile, GlRequest, window::WindowBuilder};
+use glium::texture::RawImage2d;
 use nalgebra::{Matrix4, Perspective3};
 use glium::glutin::event::DeviceEvent;
 use std::collections::HashSet;
 use std::time::Instant;
 use glium::glutin::window::Fullscreen;
+use image::ImageBuffer;
 
 #[derive(Copy, Clone)]
 struct Vertex {
     position: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
-implement_vertex!(Vertex, position);
+implement_vertex!(Vertex, position, tex_coords);
 
 #[derive(Copy, Clone)]
 struct Instance {
@@ -29,25 +32,28 @@ struct Cube {
 impl Cube {
     fn vertices() -> Vec<Vertex> {
         vec![
-            Vertex { position: [-0.5, -0.5, -0.5] },
-            Vertex { position: [0.5, -0.5, -0.5] },
-            Vertex { position: [0.5, 0.5, -0.5] },
-            Vertex { position: [-0.5, 0.5, -0.5] },
-            Vertex { position: [-0.5, -0.5, 0.5] },
-            Vertex { position: [0.5, -0.5, 0.5] },
-            Vertex { position: [0.5, 0.5, 0.5] },
-            Vertex { position: [-0.5, 0.5, 0.5] }
+            // Front face
+            Vertex { position: [-0.5, -0.5, -0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [0.5, -0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [0.5, 0.5, -0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5, 0.5, -0.5], tex_coords: [0.0, 1.0] },
+
+            // Back face
+            Vertex { position: [-0.5, -0.5, 0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [0.5, -0.5, 0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [0.5, 0.5, 0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5, 0.5, 0.5], tex_coords: [0.0, 1.0] },
         ]
     }
 
     fn indices() -> Vec<u16> {
         vec![
-            0, 1, 2, 3,    // Front face
-            7, 6, 5, 4,    // Back face
-            0, 4, 5, 1,    // Bottom face
-            3, 2, 6, 7,    // Top face
-            1, 5, 6, 2,    // Right face
-            4, 0, 3, 7     // Left face
+            0, 1, 2, 2, 3, 0,    // Front face
+            4, 5, 6, 6, 7, 4,    // Back face
+            0, 1, 5, 5, 4, 0,    // Bottom face
+            2, 3, 7, 7, 6, 2,    // Top face
+            1, 5, 6, 6, 2, 1,    // Right face
+            0, 4, 7, 7, 3, 0     // Left face
         ]
     }
 }
@@ -56,7 +62,7 @@ fn main() {
     let event_loop = EventLoop::new();
     let primary_monitor = event_loop.primary_monitor().unwrap();
     let window = WindowBuilder::new()
-        .with_title("Mutetra")
+        .with_title("Cube Renderer")
         .with_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
 
     let context = ContextBuilder::new()
@@ -64,6 +70,20 @@ fn main() {
         .with_gl_profile(GlProfile::Core);
 
     let display = Display::new(window, context, &event_loop).unwrap();
+
+    // Creating a black square texture with a dark grey border
+    let img: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::from_fn(64, 64, |x, y| {
+        if x < 4 || x > 59 || y < 4 || y > 59 {
+            image::Rgba([77, 77, 77, 255]) // Dark grey border
+        } else {
+            image::Rgba([0, 0, 0, 255]) // Black
+        }
+    });
+
+    let dimensions = img.dimensions(); // Get dimensions before moving
+    let raw_data = img.into_raw(); // This moves img
+    let raw_image = RawImage2d::from_raw_rgba_reversed(&raw_data, dimensions);
+    let texture = Texture2d::new(&display, raw_image).unwrap();
 
     let mut cubes = Vec::new();
 
@@ -84,7 +104,7 @@ fn main() {
 
     // Load vertices and indices for a single cube
     let vertex_buffer = VertexBuffer::new(&display, &Cube::vertices()).unwrap();
-    let index_buffer = IndexBuffer::new(&display, PrimitiveType::LineLoop, &Cube::indices()).unwrap();
+    let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &Cube::indices()).unwrap();
 
     // Create an instance buffer for cube positions
     let instance_positions: Vec<Instance> = cubes.iter().map(|c| Instance { instance_position: c.position }).collect();
@@ -93,21 +113,26 @@ fn main() {
     let program = Program::from_source(&display, "
         #version 140
         in vec3 position;
+        in vec2 tex_coords;
         in vec3 instance_position;
+        out vec2 v_tex_coords;
         uniform mat4 matrix;
         void main() {
+            v_tex_coords = tex_coords;
             gl_Position = matrix * vec4(position + instance_position, 1.0);
         }
     ", "
         #version 140
+        in vec2 v_tex_coords;
         out vec4 color;
+        uniform sampler2D tex;
         void main() {
-            color = vec4(1.0, 0.0, 0.0, 1.0);
+            color = texture(tex, v_tex_coords);
         }
     ", None).unwrap();
 
     let mut player_position = [0.0, 0.0, -2.0_f32];
-    let perspective = Perspective3::new(4.0 / 3.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0);
+    let perspective = Perspective3::new(1920.0 / 1080.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0);
 
     let mut pitch: f32 = 0.0;
     let mut yaw: f32 = 0.0;
@@ -182,6 +207,12 @@ fn main() {
             player_position[0] += right.x * move_distance;
             player_position[2] += right.z * move_distance;
         }
+        if pressed_keys.contains(&VirtualKeyCode::Space) {
+            player_position[1] += move_distance; // Move up
+        }
+        if pressed_keys.contains(&VirtualKeyCode::LShift) {
+            player_position[1] -= move_distance; // Move down
+        }
 
         let direction = nalgebra::Vector3::new(
             yaw.cos() * pitch.cos(),
@@ -200,9 +231,16 @@ fn main() {
 
         let uniforms = uniform! {
             matrix: <[[f32; 4]; 4]>::from(perspective.to_homogeneous() * view),
+            tex: &texture
         };
 
-        target.draw((&vertex_buffer, instance_buffer.per_instance().unwrap()), &index_buffer, &program, &uniforms, &Default::default()).unwrap();
+        target.draw(
+            (&vertex_buffer, instance_buffer.per_instance().unwrap()), 
+            &index_buffer, 
+            &program, 
+            &uniforms, 
+            &Default::default()
+        ).unwrap();
 
         target.finish().unwrap();
     });
