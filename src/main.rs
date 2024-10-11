@@ -53,6 +53,18 @@ fn main() {
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::Focused(true) => {
+                    let gl_window = display.gl_window(); // Get a more persistent reference
+                    let window = gl_window.window();
+                    window.set_cursor_grab(true).unwrap_or_else(|_| println!("Unable to grab cursor"));
+                    window.set_cursor_visible(false);
+                }
+                WindowEvent::Focused(false) => {
+                    let gl_window = display.gl_window(); // Get a more persistent reference
+                    let window = gl_window.window();
+                    window.set_cursor_grab(false).unwrap_or_else(|_| println!("Unable to release cursor"));
+                    window.set_cursor_visible(true);
+                }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if let Some(key) = input.virtual_keycode {
                         if input.state == ElementState::Pressed {
@@ -79,7 +91,7 @@ fn main() {
             },
             _ => (),
         }
-
+        
         let direction = nalgebra::Vector3::new(
             yaw.cos() * pitch.cos(),
             pitch.sin(),
