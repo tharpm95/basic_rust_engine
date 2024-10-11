@@ -5,10 +5,14 @@ use nalgebra::{Matrix4, Perspective3};
 use glium::glutin::event::DeviceEvent;
 use std::collections::HashSet;
 use std::time::Instant;
+use glium::glutin::window::Fullscreen;
 
 fn main() {
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Mutetra");
+    let primary_monitor = event_loop.primary_monitor().unwrap();
+    let window = WindowBuilder::new()
+        .with_title("Mutetra")
+        .with_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
     let context = ContextBuilder::new().with_gl(GlRequest::Latest).with_gl_profile(GlProfile::Core);
     let display = Display::new(window, context, &event_loop).unwrap();
 
@@ -100,17 +104,27 @@ fn main() {
         let move_speed = 2.0; // Adjust speed as desired
         let move_distance = move_speed * elapsed.as_secs_f32();
 
-        if pressed_keys.contains(&VirtualKeyCode::W) {
-            player_position[2] += move_distance;
-        }
-        if pressed_keys.contains(&VirtualKeyCode::S) {
-            player_position[2] -= move_distance;
-        }
+        let mut forward = nalgebra::Vector3::new(yaw.sin(), 0.0, -yaw.cos());
+        forward.normalize_mut();
+
+        let mut right = nalgebra::Vector3::new(forward.z, 0.0, -forward.x);
+        right.normalize_mut();
+
         if pressed_keys.contains(&VirtualKeyCode::A) {
-            player_position[0] -= move_distance;
+            player_position[0] += forward.x * move_distance;
+            player_position[2] += forward.z * move_distance;
         }
         if pressed_keys.contains(&VirtualKeyCode::D) {
-            player_position[0] += move_distance;
+            player_position[0] -= forward.x * move_distance;
+            player_position[2] -= forward.z * move_distance;
+        }
+        if pressed_keys.contains(&VirtualKeyCode::W) {
+            player_position[0] -= right.x * move_distance;
+            player_position[2] -= right.z * move_distance;
+        }
+        if pressed_keys.contains(&VirtualKeyCode::S) {
+            player_position[0] += right.x * move_distance;
+            player_position[2] += right.z * move_distance;
         }
 
         let direction = nalgebra::Vector3::new(
