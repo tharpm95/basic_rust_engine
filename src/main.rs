@@ -6,7 +6,6 @@ use graphics::Graphics;
 use input::Input;
 use glium::glutin::event_loop::EventLoop;
 
-// In main.rs
 fn main() {
     let event_loop = EventLoop::new();
     let mut graphics = Graphics::new(&event_loop);

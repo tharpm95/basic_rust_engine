@@ -8,11 +8,8 @@ use nalgebra::Perspective3;
 use std::time::Instant;
 use glium::glutin::window::Fullscreen;
 use image::ImageBuffer;
-
-// Import the necessary macro
 use glium::implement_vertex;
 
-// Define the crosshair vertex
 #[derive(Copy, Clone)]
 struct CrosshairVertex {
     position: [f32; 2],
@@ -31,8 +28,8 @@ pub struct Graphics {
     perspective: Perspective3<f32>,
     last_update: Instant,
     highlight_color: [f32; 4],
-    crosshair_vertex_buffer: VertexBuffer<CrosshairVertex>, // Buffer for crosshair
-    crosshair_program: Program,  // Shader program for crosshair
+    crosshair_vertex_buffer: VertexBuffer<CrosshairVertex>,
+    crosshair_program: Program,
 }
 
 impl Graphics {
@@ -48,7 +45,6 @@ impl Graphics {
 
         let display = Display::new(window, context, event_loop).unwrap();
 
-        // Hide the cursor
         display.gl_window().window().set_cursor_visible(false);
 
         let img: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::from_fn(64, 64, |x, y| {
@@ -107,7 +103,6 @@ impl Graphics {
             }
         ", None).unwrap();
 
-        // Define a simple crosshair shader
         let crosshair_program = Program::from_source(&display, "
             #version 140
             in vec2 position;
@@ -118,14 +113,13 @@ impl Graphics {
             #version 140
             out vec4 color;
             void main() {
-                color = vec4(1.0, 1.0, 1.0, 1.0); // Crosshair color - white
+                color = vec4(1.0, 1.0, 1.0, 1.0);
             }
         ", None).unwrap();
 
-        // Crosshair vertex data using the new struct
         let crosshair_vertices = [
-            CrosshairVertex { position: [-0.011, 0.0] }, CrosshairVertex { position: [0.0103, 0.0] }, // Horizontal line
-            CrosshairVertex { position: [0.0, -0.02] }, CrosshairVertex { position: [0.0, 0.019] }, // Vertical line
+            CrosshairVertex { position: [-0.011, 0.0] }, CrosshairVertex { position: [0.0103, 0.0] },
+            CrosshairVertex { position: [0.0, -0.02] }, CrosshairVertex { position: [0.0, 0.019] },
         ];
 
         let crosshair_vertex_buffer = VertexBuffer::new(&display, &crosshair_vertices).unwrap();
@@ -140,7 +134,7 @@ impl Graphics {
             player_position: [0.0, 0.0, -2.0_f32],
             perspective: Perspective3::new(1920.0 / 1080.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0),
             last_update: Instant::now(),
-            highlight_color: [0.5_f32, 0.5_f32, 1.0_f32, 1.0_f32], // Light blue color
+            highlight_color: [0.5_f32, 0.5_f32, 1.0_f32, 1.0_f32],
             crosshair_vertex_buffer,
             crosshair_program,
         }
@@ -153,15 +147,13 @@ impl Graphics {
             let distance = to_cube.magnitude();
             let to_cube_norm = to_cube.normalize();
             let dot_product = to_cube_norm.dot(&direction);
-    
-            // Also consider the distance and ensure the distance is small enough (for close cubes)
-            if dot_product > 0.98 && distance < 8.0 { // Adjust 8.0 based on an appropriate range
+
+            if dot_product > 0.98 && distance < 8.0 {
                 Some((i, distance))
             } else {
                 None
             }
         })
-        // Prioritize cubes by the distance, choosing the closest one
         .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(i, _)| i)
     }
@@ -194,7 +186,7 @@ impl Graphics {
         let uniforms = uniform! {
             matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
             tex: &self.texture,
-            u_highlight_color: [1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32], // Default color (no tint)
+            u_highlight_color: [1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32],
         };
 
         target.draw(
@@ -213,26 +205,35 @@ impl Graphics {
         ).unwrap();
 
         if let Some(targeted_index) = self.find_targeted_cube(direction) {
-            let instance_slice = self.instance_buffer.slice(targeted_index..targeted_index + 1).unwrap();
-            let highlight_uniforms = uniform! {
-                matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
-                tex: &self.texture,
-                u_highlight_color: self.highlight_color,
-            };
-            target.draw(
-                (&self.vertex_buffer, instance_slice.per_instance().unwrap()), 
-                &self.index_buffer, 
-                &self.program, 
-                &highlight_uniforms,
-                &glium::DrawParameters {
-                    polygon_mode: glium::PolygonMode::Line,
-                    line_width: Some(3.0),
-                    .. Default::default()
-                }
-            ).unwrap();
+            if input.is_mouse_clicked() {
+                let instance_positions: Vec<Instance> = self.instance_buffer.read()
+                    .unwrap()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &inst)| if i != targeted_index { Some(inst) } else { None })
+                    .collect();
+                self.instance_buffer = VertexBuffer::new(&self.display, &instance_positions).unwrap();
+            } else {
+                let instance_slice = self.instance_buffer.slice(targeted_index..targeted_index + 1).unwrap();
+                let highlight_uniforms = uniform! {
+                    matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
+                    tex: &self.texture,
+                    u_highlight_color: self.highlight_color,
+                };
+                target.draw(
+                    (&self.vertex_buffer, instance_slice.per_instance().unwrap()), 
+                    &self.index_buffer, 
+                    &self.program, 
+                    &highlight_uniforms,
+                    &glium::DrawParameters {
+                        polygon_mode: glium::PolygonMode::Line,
+                        line_width: Some(3.0),
+                        .. Default::default()
+                    }
+                ).unwrap();
+            }
         }
 
-        // Draw the crosshair
         target.draw(
             &self.crosshair_vertex_buffer,
             glium::index::NoIndices(glium::index::PrimitiveType::LinesList),

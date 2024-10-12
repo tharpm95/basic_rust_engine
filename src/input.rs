@@ -1,17 +1,19 @@
-use glium::glutin::event::{Event, WindowEvent, VirtualKeyCode, ElementState, DeviceEvent};
+use glium::glutin::event::{Event, WindowEvent, VirtualKeyCode, ElementState, DeviceEvent, MouseButton};
 use std::collections::HashSet;
 use std::time::Duration;
 
 pub struct Input {
     pressed_keys: HashSet<VirtualKeyCode>,
     mouse_sensitivity: f32,
+    mouse_clicked: bool,
 }
 
 impl Input {
     pub fn new() -> Self {
         Input {
             pressed_keys: HashSet::new(),
-            mouse_sensitivity: 0.005, // Adjustable sensitivity
+            mouse_sensitivity: 0.005,
+            mouse_clicked: false,
         }
     }
 
@@ -26,6 +28,11 @@ impl Input {
                         }
                     }
                 },
+                WindowEvent::MouseInput { state, button, .. } => {
+                    if *button == MouseButton::Left {
+                        self.mouse_clicked = *state == ElementState::Pressed;
+                    }
+                }
                 _ => (),
             },
             Event::DeviceEvent { event, .. } => match event {
@@ -33,7 +40,7 @@ impl Input {
                     let (delta_x, delta_y) = *delta;
                     *yaw += delta_x as f32 * self.mouse_sensitivity;
                     *pitch -= delta_y as f32 * self.mouse_sensitivity;
-                    *pitch = pitch.clamp(-1.57, 1.57); // Clamp pitch to prevent flipping
+                    *pitch = pitch.clamp(-1.57, 1.57);
                 },
                 _ => (),
             },
@@ -68,10 +75,15 @@ impl Input {
             player_position[2] += right.z * move_distance;
         }
         if self.pressed_keys.contains(&VirtualKeyCode::Space) {
-            player_position[1] += move_distance; // Move up
+            player_position[1] += move_distance;
         }
         if self.pressed_keys.contains(&VirtualKeyCode::LShift) {
-            player_position[1] -= move_distance; // Move down
+            player_position[1] -= move_distance;
         }
+    }
+
+    // Make sure this method is included
+    pub fn is_mouse_clicked(&self) -> bool {
+        self.mouse_clicked
     }
 }
