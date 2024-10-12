@@ -7,7 +7,7 @@ use crate::input::Input;
 use nalgebra::Perspective3;
 use std::time::Instant;
 use glium::glutin::window::Fullscreen;
-use image::ImageBuffer;
+use image::GenericImageView;
 use glium::implement_vertex;
 
 #[derive(Copy, Clone)]
@@ -47,17 +47,12 @@ impl Graphics {
 
         display.gl_window().window().set_cursor_visible(false);
 
-        let img: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::from_fn(64, 64, |x, y| {
-            if x < 4 || x > 59 || y < 4 || y > 59 {
-                image::Rgba([77, 77, 77, 255])
-            } else {
-                image::Rgba([0, 0, 0, 255])
-            }
-        });
-
-        let dimensions = img.dimensions();
-        let raw_data = img.into_raw();
-        let raw_image = RawImage2d::from_raw_rgba_reversed(&raw_data, dimensions);
+        // Load texture from PNG file
+        let image_path = "P:/Code/Mutetra/src/images/dirt/dirt.png";
+        let image = image::open(image_path).unwrap();
+        let image_dimensions = image.dimensions();
+        let image = image.to_rgba8();
+        let raw_image = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
         let texture = Texture2d::new(&display, raw_image).unwrap();
 
         let vertex_buffer = VertexBuffer::new(&display, &Cube::vertices()).unwrap();
@@ -99,7 +94,7 @@ impl Graphics {
             uniform sampler2D tex;
             uniform vec4 u_highlight_color;
             void main() {
-                color = texture(tex, v_tex_coords) * u_highlight_color;
+                 color = texture(tex, v_tex_coords) * u_highlight_color;
             }
         ", None).unwrap();
 
@@ -204,7 +199,6 @@ impl Graphics {
             }
         ).unwrap();
 
-        // Inside the draw_frame method in graphics.rs
         if let Some(targeted_index) = self.find_targeted_cube(direction) {
             if input.can_remove_cube() {
                 let instance_positions: Vec<Instance> = self.instance_buffer.read()
