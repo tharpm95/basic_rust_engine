@@ -1,11 +1,13 @@
 use glium::glutin::event::{Event, WindowEvent, VirtualKeyCode, ElementState, DeviceEvent, MouseButton};
 use std::collections::HashSet;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub struct Input {
     pressed_keys: HashSet<VirtualKeyCode>,
     mouse_sensitivity: f32,
     mouse_clicked: bool,
+    last_click_time: Instant,
+    click_delay: Duration,
 }
 
 impl Input {
@@ -14,6 +16,17 @@ impl Input {
             pressed_keys: HashSet::new(),
             mouse_sensitivity: 0.005,
             mouse_clicked: false,
+            last_click_time: Instant::now(),
+            click_delay: Duration::from_millis(500), // 500ms delay between removals
+        }
+    }
+
+    pub fn can_remove_cube(&mut self) -> bool {
+        if self.mouse_clicked && self.last_click_time.elapsed() >= self.click_delay {
+            self.last_click_time = Instant::now();
+            true
+        } else {
+            false
         }
     }
 
@@ -80,10 +93,5 @@ impl Input {
         if self.pressed_keys.contains(&VirtualKeyCode::LShift) {
             player_position[1] -= move_distance;
         }
-    }
-
-    // Make sure this method is included
-    pub fn is_mouse_clicked(&self) -> bool {
-        self.mouse_clicked
     }
 }

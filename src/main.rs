@@ -16,7 +16,7 @@ fn main() {
         *control_flow = glium::glutin::event_loop::ControlFlow::Poll;
 
         input.process_event(&event, &mut yaw, &mut pitch);
-        graphics.draw_frame(&input, &mut yaw, &mut pitch);
+        graphics.draw_frame(&mut input, &mut yaw, &mut pitch);
 
         if let glium::glutin::event::Event::WindowEvent { event, .. } = &event {
             if let glium::glutin::event::WindowEvent::CloseRequested = event {

@@ -158,7 +158,7 @@ impl Graphics {
         .map(|(i, _)| i)
     }
 
-    pub fn draw_frame(&mut self, input: &Input, yaw: &mut f32, pitch: &mut f32) {
+    pub fn draw_frame(&mut self, input: &mut Input, yaw: &mut f32, pitch: &mut f32) {
         let elapsed = self.last_update.elapsed();
         self.last_update = Instant::now();
 
@@ -204,8 +204,9 @@ impl Graphics {
             }
         ).unwrap();
 
+        // Inside the draw_frame method in graphics.rs
         if let Some(targeted_index) = self.find_targeted_cube(direction) {
-            if input.is_mouse_clicked() {
+            if input.can_remove_cube() {
                 let instance_positions: Vec<Instance> = self.instance_buffer.read()
                     .unwrap()
                     .iter()
