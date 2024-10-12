@@ -9,6 +9,17 @@ use std::time::Instant;
 use glium::glutin::window::Fullscreen;
 use image::ImageBuffer;
 
+// Import the necessary macro
+use glium::implement_vertex;
+
+// Define the crosshair vertex
+#[derive(Copy, Clone)]
+struct CrosshairVertex {
+    position: [f32; 2],
+}
+
+implement_vertex!(CrosshairVertex, position);
+
 pub struct Graphics {
     display: Display,
     program: Program,
@@ -20,6 +31,8 @@ pub struct Graphics {
     perspective: Perspective3<f32>,
     last_update: Instant,
     highlight_color: [f32; 4],
+    crosshair_vertex_buffer: VertexBuffer<CrosshairVertex>, // Buffer for crosshair
+    crosshair_program: Program,  // Shader program for crosshair
 }
 
 impl Graphics {
@@ -34,6 +47,9 @@ impl Graphics {
             .with_gl_profile(GlProfile::Core);
 
         let display = Display::new(window, context, event_loop).unwrap();
+
+        // Hide the cursor
+        display.gl_window().window().set_cursor_visible(false);
 
         let img: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::from_fn(64, 64, |x, y| {
             if x < 4 || x > 59 || y < 4 || y > 59 {
@@ -91,6 +107,29 @@ impl Graphics {
             }
         ", None).unwrap();
 
+        // Define a simple crosshair shader
+        let crosshair_program = Program::from_source(&display, "
+            #version 140
+            in vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        ", "
+            #version 140
+            out vec4 color;
+            void main() {
+                color = vec4(1.0, 1.0, 1.0, 1.0); // Crosshair color - white
+            }
+        ", None).unwrap();
+
+        // Crosshair vertex data using the new struct
+        let crosshair_vertices = [
+            CrosshairVertex { position: [-0.011, 0.0] }, CrosshairVertex { position: [0.0103, 0.0] }, // Horizontal line
+            CrosshairVertex { position: [0.0, -0.02] }, CrosshairVertex { position: [0.0, 0.019] }, // Vertical line
+        ];
+
+        let crosshair_vertex_buffer = VertexBuffer::new(&display, &crosshair_vertices).unwrap();
+
         Graphics {
             display,
             program,
@@ -102,6 +141,8 @@ impl Graphics {
             perspective: Perspective3::new(1920.0 / 1080.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0),
             last_update: Instant::now(),
             highlight_color: [0.5_f32, 0.5_f32, 1.0_f32, 1.0_f32], // Light blue color
+            crosshair_vertex_buffer,
+            crosshair_program,
         }
     }
 
@@ -109,15 +150,19 @@ impl Graphics {
         self.instance_buffer.read().unwrap().iter().enumerate().filter_map(|(i, inst)| {
             let position = nalgebra::Vector3::new(inst.instance_position[0], inst.instance_position[1], inst.instance_position[2]);
             let to_cube = position - nalgebra::Vector3::from(self.player_position);
+            let distance = to_cube.magnitude();
             let to_cube_norm = to_cube.normalize();
             let dot_product = to_cube_norm.dot(&direction);
-
-            if dot_product > 0.95 { // The cube is nearly in line with the view direction
-                Some((i, dot_product))
+    
+            // Also consider the distance and ensure the distance is small enough (for close cubes)
+            if dot_product > 0.98 && distance < 8.0 { // Adjust 8.0 based on an appropriate range
+                Some((i, distance))
             } else {
                 None
             }
-        }).max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        })
+        // Prioritize cubes by the distance, choosing the closest one
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(i, _)| i)
     }
 
@@ -186,6 +231,18 @@ impl Graphics {
                 }
             ).unwrap();
         }
+
+        // Draw the crosshair
+        target.draw(
+            &self.crosshair_vertex_buffer,
+            glium::index::NoIndices(glium::index::PrimitiveType::LinesList),
+            &self.crosshair_program,
+            &uniform! {},
+            &glium::DrawParameters {
+                blend: glium::draw_parameters::Blend::alpha_blending(),
+                ..Default::default()
+            }
+        ).unwrap();
 
         target.finish().unwrap();
     }
