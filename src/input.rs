@@ -22,12 +22,15 @@ impl Input {
     }
 
     pub fn can_remove_cube(&mut self) -> bool {
-        if self.mouse_clicked && self.last_click_time.elapsed() >= self.click_delay {
-            self.last_click_time = Instant::now();
-            true
+        if self.mouse_clicked {
+            if self.last_click_time.elapsed() >= self.click_delay {
+                self.last_click_time = Instant::now();
+                return true;
+            }
         } else {
-            false
+            self.last_click_time = Instant::now(); // Reset the click time if mouse is not clicked
         }
+        false
     }
 
     pub fn process_event(&mut self, event: &Event<()>, yaw: &mut f32, pitch: &mut f32) {
