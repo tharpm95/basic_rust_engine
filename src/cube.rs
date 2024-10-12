@@ -24,15 +24,39 @@ impl Cube {
         vec![
             // Front face
             Vertex { position: [-0.5, -0.5, -0.5], tex_coords: [0.0, 0.0] },
-            Vertex { position: [0.5, -0.5, -0.5], tex_coords: [1.0, 0.0] },
-            Vertex { position: [0.5, 0.5, -0.5], tex_coords: [1.0, 1.0] },
-            Vertex { position: [-0.5, 0.5, -0.5], tex_coords: [0.0, 1.0] },
+            Vertex { position: [ 0.5, -0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5, -0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5,  0.5, -0.5], tex_coords: [0.0, 1.0] },
 
             // Back face
-            Vertex { position: [-0.5, -0.5, 0.5], tex_coords: [0.0, 0.0] },
-            Vertex { position: [0.5, -0.5, 0.5], tex_coords: [1.0, 0.0] },
-            Vertex { position: [0.5, 0.5, 0.5], tex_coords: [1.0, 1.0] },
-            Vertex { position: [-0.5, 0.5, 0.5], tex_coords: [0.0, 1.0] },
+            Vertex { position: [-0.5, -0.5,  0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [ 0.5, -0.5,  0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5,  0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5,  0.5,  0.5], tex_coords: [0.0, 1.0] },
+
+            // Top face
+            Vertex { position: [-0.5,  0.5, -0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5,  0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5,  0.5,  0.5], tex_coords: [0.0, 1.0] },
+
+            // Bottom face
+            Vertex { position: [-0.5, -0.5, -0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [ 0.5, -0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [ 0.5, -0.5,  0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5, -0.5,  0.5], tex_coords: [0.0, 1.0] },
+
+            // Right face
+            Vertex { position: [ 0.5, -0.5, -0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [ 0.5,  0.5,  0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [ 0.5, -0.5,  0.5], tex_coords: [0.0, 1.0] },
+
+            // Left face
+            Vertex { position: [-0.5, -0.5, -0.5], tex_coords: [0.0, 0.0] },
+            Vertex { position: [-0.5,  0.5, -0.5], tex_coords: [1.0, 0.0] },
+            Vertex { position: [-0.5,  0.5,  0.5], tex_coords: [1.0, 1.0] },
+            Vertex { position: [-0.5, -0.5,  0.5], tex_coords: [0.0, 1.0] },
         ]
     }
 
@@ -40,10 +64,10 @@ impl Cube {
         vec![
             0, 1, 2, 2, 3, 0,    // Front face
             4, 5, 6, 6, 7, 4,    // Back face
-            0, 1, 5, 5, 4, 0,    // Bottom face
-            2, 3, 7, 7, 6, 2,    // Top face
-            1, 5, 6, 6, 2, 1,    // Right face
-            0, 4, 7, 7, 3, 0     // Left face
+            8, 9, 10, 10, 11, 8, // Top face
+            12, 13, 14, 14, 15, 12, // Bottom face
+            16, 17, 18, 18, 19, 16, // Right face
+            20, 21, 22, 22, 23, 20  // Left face
         ]
     }
 }

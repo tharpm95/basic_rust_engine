@@ -106,7 +106,6 @@ impl Graphics {
         }
     }
 
-    // Inside graphics.rs
     pub fn draw_frame(&mut self, input: &Input, yaw: &mut f32, pitch: &mut f32) {
         let elapsed = self.last_update.elapsed();
         self.last_update = Instant::now();
