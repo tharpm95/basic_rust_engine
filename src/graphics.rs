@@ -110,16 +110,15 @@ impl Graphics {
     pub fn draw_frame(&mut self, input: &Input, yaw: &mut f32, pitch: &mut f32) {
         let elapsed = self.last_update.elapsed();
         self.last_update = Instant::now();
-
+    
         input.process_input(elapsed, &mut self.player_position, yaw, pitch);
-
-        // Camera direction computation with updated yaw and pitch
+    
         let direction = nalgebra::Vector3::new(
             yaw.cos() * pitch.cos(),
             pitch.sin(),
             yaw.sin() * pitch.cos()
         ).normalize();
-
+    
         let view = nalgebra::Matrix4::look_at_rh(
             &nalgebra::Point3::new(
                 self.player_position[0],
@@ -129,23 +128,30 @@ impl Graphics {
             &(nalgebra::Point3::from(nalgebra::Vector3::from(self.player_position) + direction)),
             &nalgebra::Vector3::y_axis(),
         );
-
+    
         let mut target = self.display.draw();
-        target.clear_color(0.0, 0.0, 1.0, 1.0);
-
+        target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0); // Clear both color and depth buffers
+    
         let uniforms = uniform! {
             matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
             tex: &self.texture
         };
-
+    
         target.draw(
             (&self.vertex_buffer, self.instance_buffer.per_instance().unwrap()), 
             &self.index_buffer, 
             &self.program, 
             &uniforms, 
-            &Default::default()
+            &glium::DrawParameters {
+                depth: glium::Depth {
+                    test: glium::draw_parameters::DepthTest::IfLess, // Set depth test to check if fragment is closer
+                    write: true, // Write to depth buffer
+                    .. Default::default()
+                },
+                .. Default::default()
+            }
         ).unwrap();
-
+    
         target.finish().unwrap();
     }
 }
