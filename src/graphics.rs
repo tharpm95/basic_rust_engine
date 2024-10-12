@@ -19,6 +19,7 @@ pub struct Graphics {
     player_position: [f32; 3],
     perspective: Perspective3<f32>,
     last_update: Instant,
+    highlight_color: [f32; 4],
 }
 
 impl Graphics {
@@ -34,25 +35,22 @@ impl Graphics {
 
         let display = Display::new(window, context, event_loop).unwrap();
 
-        // Creating a black square texture with a dark grey border
         let img: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::from_fn(64, 64, |x, y| {
             if x < 4 || x > 59 || y < 4 || y > 59 {
-                image::Rgba([77, 77, 77, 255]) // Dark grey border
+                image::Rgba([77, 77, 77, 255])
             } else {
-                image::Rgba([0, 0, 0, 255]) // Black
+                image::Rgba([0, 0, 0, 255])
             }
         });
 
-        let dimensions = img.dimensions(); // Get dimensions before moving
-        let raw_data = img.into_raw(); // This moves img
+        let dimensions = img.dimensions();
+        let raw_data = img.into_raw();
         let raw_image = RawImage2d::from_raw_rgba_reversed(&raw_data, dimensions);
         let texture = Texture2d::new(&display, raw_image).unwrap();
 
-        // Load vertices and indices for a single cube
         let vertex_buffer = VertexBuffer::new(&display, &Cube::vertices()).unwrap();
         let index_buffer = IndexBuffer::new(&display, PrimitiveType::TrianglesList, &Cube::indices()).unwrap();
 
-        // Set up cube positions
         let mut cubes = Vec::new();
         for x in 0..10 {
             for z in 0..10 {
@@ -68,7 +66,6 @@ impl Graphics {
             cubes.push(Cube { position: [9.0, 0.0, z as f32] });
         }
 
-        // Create an instance buffer for cube positions
         let instance_positions: Vec<Instance> = cubes.iter().map(|c| Instance { instance_position: c.position }).collect();
         let instance_buffer = VertexBuffer::new(&display, &instance_positions).unwrap();
 
@@ -88,8 +85,9 @@ impl Graphics {
             in vec2 v_tex_coords;
             out vec4 color;
             uniform sampler2D tex;
+            uniform vec4 u_highlight_color;
             void main() {
-                color = texture(tex, v_tex_coords);
+                color = texture(tex, v_tex_coords) * u_highlight_color;
             }
         ", None).unwrap();
 
@@ -103,21 +101,38 @@ impl Graphics {
             player_position: [0.0, 0.0, -2.0_f32],
             perspective: Perspective3::new(1920.0 / 1080.0, std::f32::consts::FRAC_PI_2, 0.1, 1024.0),
             last_update: Instant::now(),
+            highlight_color: [0.5_f32, 0.5_f32, 1.0_f32, 1.0_f32], // Light blue color
         }
+    }
+
+    fn find_targeted_cube(&self, direction: nalgebra::Vector3<f32>) -> Option<usize> {
+        self.instance_buffer.read().unwrap().iter().enumerate().filter_map(|(i, inst)| {
+            let position = nalgebra::Vector3::new(inst.instance_position[0], inst.instance_position[1], inst.instance_position[2]);
+            let to_cube = position - nalgebra::Vector3::from(self.player_position);
+            let to_cube_norm = to_cube.normalize();
+            let dot_product = to_cube_norm.dot(&direction);
+
+            if dot_product > 0.95 { // The cube is nearly in line with the view direction
+                Some((i, dot_product))
+            } else {
+                None
+            }
+        }).max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|(i, _)| i)
     }
 
     pub fn draw_frame(&mut self, input: &Input, yaw: &mut f32, pitch: &mut f32) {
         let elapsed = self.last_update.elapsed();
         self.last_update = Instant::now();
-    
+
         input.process_input(elapsed, &mut self.player_position, yaw, pitch);
-    
+
         let direction = nalgebra::Vector3::new(
             yaw.cos() * pitch.cos(),
             pitch.sin(),
             yaw.sin() * pitch.cos()
         ).normalize();
-    
+
         let view = nalgebra::Matrix4::look_at_rh(
             &nalgebra::Point3::new(
                 self.player_position[0],
@@ -127,15 +142,16 @@ impl Graphics {
             &(nalgebra::Point3::from(nalgebra::Vector3::from(self.player_position) + direction)),
             &nalgebra::Vector3::y_axis(),
         );
-    
+
         let mut target = self.display.draw();
-        target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0); // Clear both color and depth buffers
-    
+        target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
+
         let uniforms = uniform! {
             matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
-            tex: &self.texture
+            tex: &self.texture,
+            u_highlight_color: [1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32], // Default color (no tint)
         };
-    
+
         target.draw(
             (&self.vertex_buffer, self.instance_buffer.per_instance().unwrap()), 
             &self.index_buffer, 
@@ -143,14 +159,34 @@ impl Graphics {
             &uniforms, 
             &glium::DrawParameters {
                 depth: glium::Depth {
-                    test: glium::draw_parameters::DepthTest::IfLess, // Set depth test to check if fragment is closer
-                    write: true, // Write to depth buffer
+                    test: glium::draw_parameters::DepthTest::IfLess,
+                    write: true,
                     .. Default::default()
                 },
                 .. Default::default()
             }
         ).unwrap();
-    
+
+        if let Some(targeted_index) = self.find_targeted_cube(direction) {
+            let instance_slice = self.instance_buffer.slice(targeted_index..targeted_index + 1).unwrap();
+            let highlight_uniforms = uniform! {
+                matrix: <[[f32; 4]; 4]>::from(self.perspective.to_homogeneous() * view),
+                tex: &self.texture,
+                u_highlight_color: self.highlight_color,
+            };
+            target.draw(
+                (&self.vertex_buffer, instance_slice.per_instance().unwrap()), 
+                &self.index_buffer, 
+                &self.program, 
+                &highlight_uniforms,
+                &glium::DrawParameters {
+                    polygon_mode: glium::PolygonMode::Line,
+                    line_width: Some(3.0),
+                    .. Default::default()
+                }
+            ).unwrap();
+        }
+
         target.finish().unwrap();
     }
 }
