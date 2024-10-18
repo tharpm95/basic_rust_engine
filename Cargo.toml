@@ -8,8 +8,8 @@ name = "mutetra"
 path = "src/main.rs"
 
 [dependencies]
-glutin = "0.24"
-glium = "0.31"
-nalgebra = "0.28.0"
-cgmath = "0.17"
-image = "0.23"
+wgpu = "0.12"
+winit = "0.26"
+pollster = "0.2"
+cgmath = "0.18"
+bytemuck = { version = "1.19", features = ["derive"] }
