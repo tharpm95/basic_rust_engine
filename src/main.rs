@@ -4,15 +4,73 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use cgmath::SquareMatrix;
-use cgmath::{Matrix4, Point3, Rad, Vector3};
+use cgmath::{Matrix4, Point3, Rad, Vector3, SquareMatrix}; 
 use std::f32::consts::PI;
 use bytemuck::{Pod, Zeroable};
 
+// Struct to manage camera orientation through mouse input
+struct CameraController {
+    yaw: f32,
+    pitch: f32,
+    speed: f32,
+    last_mouse_position: Option<(f64, f64)>,
+}
+
+impl CameraController {
+    fn new() -> Self {
+        Self {
+            yaw: 0.0,
+            pitch: 0.0,
+            speed: 0.1,
+            last_mouse_position: None,
+        }
+    }
+
+    fn process_mouse(&mut self, dx: f64, dy: f64) {
+        let sensitivity = 0.01; // Increase sensitivity
+        self.yaw += dx as f32 * sensitivity;
+        self.pitch += dy as f32 * sensitivity;
+        self.pitch = self.pitch.clamp(-PI / 2.0, PI / 2.0);
+    }
+
+    fn update_view_proj(&self, aspect_ratio: f32, uniforms: &mut Uniforms) {
+        let direction = Vector3::new(
+            self.yaw.cos() * self.pitch.cos(),
+            self.pitch.sin(),
+            self.yaw.sin() * self.pitch.cos(),
+        );
+
+        // Direct the camera to face the cube located at the origin
+        let eye = Point3::new(0.0, 0.0, 5.0);
+        let target = eye + direction; // Look towards the direction
+        let up = Vector3::unit_y();
+
+        let view = Matrix4::look_at_rh(eye, target, up);
+
+        let proj = cgmath::perspective(Rad(PI / 4.0), aspect_ratio, 0.1, 100.0);
+        uniforms.view_proj = (proj * view).into();
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-struct Vertex {
-    position: [f32; 3],
+struct Uniforms {
+    view_proj: [[f32; 4]; 4],
+    model: [[f32; 4]; 4],
+}
+
+impl Uniforms {
+    fn new() -> Self {
+        Self {
+            view_proj: Matrix4::identity().into(),
+            model: Matrix4::identity().into(),
+        }
+    }
+
+    fn update_model(&mut self, rotation: f32) {
+        let model = Matrix4::from_angle_y(Rad(rotation));
+        self.model = model.into();
+    }
 }
 
 const VERTICES: &[Vertex] = &[
@@ -27,13 +85,19 @@ const VERTICES: &[Vertex] = &[
 ];
 
 const INDICES: &[u16] = &[
-    0, 1, 2, 2, 3, 0, // front
-    4, 5, 6, 6, 7, 4, // back
-    0, 1, 5, 5, 4, 0, // bottom
-    2, 3, 7, 7, 6, 2, // top
-    0, 3, 7, 7, 4, 0, // left
-    1, 2, 6, 6, 5, 1, // right
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4,
+    0, 1, 5, 5, 4, 0,
+    2, 3, 7, 7, 6, 2,
+    0, 3, 7, 7, 4, 0,
+    1, 2, 6, 6, 5, 1,
 ];
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+}
 
 async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let size = window.inner_size();
@@ -62,7 +126,6 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
     surface.configure(&device, &config);
 
-    // Vertex Buffer
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Vertex Buffer"),
         contents: bytemuck::cast_slice(VERTICES),
@@ -77,47 +140,15 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
     let index_count = INDICES.len() as u32;
 
-    // Shader module setup
     let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
     });
-    
-    // Uniforms
-    #[repr(C)]
-    #[derive(Copy, Clone, Pod, Zeroable)]
-    struct Uniforms {
-        view_proj: [[f32; 4]; 4],
-        model: [[f32; 4]; 4],
-    }
-
-    impl Uniforms {
-        fn new() -> Self {
-            Self {
-                view_proj: cgmath::Matrix4::identity().into(),
-                model: cgmath::Matrix4::identity().into(),
-            }
-        }
-
-        fn update_view_proj(&mut self, aspect_ratio: f32) {
-            let view = Matrix4::look_at_rh(
-                Point3::new(2.0, 2.0, 2.0),
-                Point3::new(0.0, 0.0, 0.0),
-                Vector3::unit_y(),
-            );
-
-            let proj = cgmath::perspective(Rad(PI / 4.0), aspect_ratio, 0.1, 100.0);
-            self.view_proj = (proj * view).into();
-        }
-
-        fn update_model(&mut self, rotation: f32) {
-            let model = Matrix4::from_angle_y(Rad(rotation));
-            self.model = model.into();
-        }
-    }
 
     let mut uniforms = Uniforms::new();
-    uniforms.update_view_proj(config.width as f32 / config.height as f32);
+    let mut camera_controller = CameraController::new(); 
+
+    camera_controller.update_view_proj(config.width as f32 / config.height as f32, &mut uniforms);
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
@@ -148,7 +179,6 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         label: Some("uniform_bind_group"),
     });
 
-    // Render pipeline setup
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Render Pipeline Layout"),
         bind_group_layouts: &[&bind_group_layout],
@@ -179,20 +209,43 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
             strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw, 
-            cull_mode: Some(wgpu::Face::Back), 
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
             ..Default::default()
         },
-        depth_stencil: None,
+        depth_stencil: None, 
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
     });
 
+    let mut last_update_inst = std::time::Instant::now();
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
+
         match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CursorMoved { position, .. } => {
+                    if let Some((previous_x, previous_y)) = camera_controller.last_mouse_position {
+                        let dx = position.x - previous_x;
+                        let dy = position.y - previous_y;
+                        camera_controller.process_mouse(dx, dy);
+                        camera_controller.update_view_proj(config.width as f32 / config.height as f32, &mut uniforms);
+                        queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+                    }
+                    camera_controller.last_mouse_position = Some((position.x, position.y));
+                }
+                WindowEvent::CloseRequested => {
+                    *control_flow = ControlFlow::Exit;
+                }
+                _ => {}
+            },
             Event::RedrawRequested(_) => {
-                uniforms.update_model(PI/4.0 * (std::time::Instant::now().elapsed().as_secs_f32() % (2.0 * PI)));
+                let now = std::time::Instant::now();
+                let duration = now - last_update_inst;
+                last_update_inst = now;
+
+                uniforms.update_model(duration.as_secs_f32());
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
                 let output = surface.get_current_texture().unwrap();
@@ -206,7 +259,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                             view: &view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), 
                                 store: true,
                             },
                         }],
