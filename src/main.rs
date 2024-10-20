@@ -12,24 +12,22 @@ use bytemuck::{Pod, Zeroable};
 struct CameraController {
     yaw: f32,
     pitch: f32,
-    speed: f32,
     last_mouse_position: Option<(f64, f64)>,
 }
 
 impl CameraController {
     fn new() -> Self {
         Self {
-            yaw: 0.0,
-            pitch: 0.0,
-            speed: 0.1,
+            yaw: PI,  // Adjust to face the desired direction
+            pitch: 0.0,  // Set pitch level
             last_mouse_position: None,
         }
     }
 
     fn process_mouse(&mut self, dx: f64, dy: f64) {
-        let sensitivity = 0.01; // Increase sensitivity
-        self.yaw += dx as f32 * sensitivity;
-        self.pitch += dy as f32 * sensitivity;
+        let sensitivity = 0.005; // Decrease sensitivity for slower mouse control
+        self.yaw += dx as f32 * sensitivity;  // Invert yaw control
+        self.pitch -= dy as f32 * sensitivity; // Invert pitch control
         self.pitch = self.pitch.clamp(-PI / 2.0, PI / 2.0);
     }
 
@@ -100,7 +98,7 @@ struct Vertex {
 }
 
 async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
-    let size = window.inner_size();
+    let mut size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::Backends::all());
     let surface = unsafe { instance.create_surface(&window) };
 
@@ -116,7 +114,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         .unwrap();
 
     let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
-    let config = wgpu::SurfaceConfiguration {
+    let mut config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
         width: size.width,
@@ -148,7 +146,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let mut uniforms = Uniforms::new();
     let mut camera_controller = CameraController::new(); 
 
-    camera_controller.update_view_proj(config.width as f32 / config.height as f32, &mut uniforms);
+    camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
@@ -225,12 +223,24 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
         match event {
             Event::WindowEvent { event, .. } => match event {
+                WindowEvent::Resized(new_size) => {
+                    size = new_size;
+                    if size.width > 0 && size.height > 0 {
+                        config.width = size.width;
+                        config.height = size.height;
+                        surface.configure(&device, &config);
+
+                        // Update the aspect ratio and view projection
+                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
+                        queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+                    }
+                }
                 WindowEvent::CursorMoved { position, .. } => {
                     if let Some((previous_x, previous_y)) = camera_controller.last_mouse_position {
                         let dx = position.x - previous_x;
                         let dy = position.y - previous_y;
                         camera_controller.process_mouse(dx, dy);
-                        camera_controller.update_view_proj(config.width as f32 / config.height as f32, &mut uniforms);
+                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
                         queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
                     }
                     camera_controller.last_mouse_position = Some((position.x, position.y));
@@ -248,7 +258,9 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 uniforms.update_model(duration.as_secs_f32());
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
-                let output = surface.get_current_texture().unwrap();
+                let output = surface
+                    .get_current_texture()
+                    .expect("Failed to acquire next swap chain texture");
                 let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") });
 
