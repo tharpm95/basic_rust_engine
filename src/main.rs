@@ -7,6 +7,7 @@ use winit::{
 use cgmath::{Matrix4, Point3, Rad, Vector3, SquareMatrix}; 
 use std::f32::consts::PI;
 use bytemuck::{Pod, Zeroable};
+use std::collections::HashSet;
 
 // Struct to manage camera orientation through mouse input
 struct CameraController {
@@ -100,6 +101,7 @@ struct Vertex {
 struct Player {
     position: Vector3<f32>,
     speed: f32,
+    keys_pressed: HashSet<VirtualKeyCode>,
 }
 
 impl Player {
@@ -107,12 +109,26 @@ impl Player {
         Self {
             position: Vector3::new(0.0, 0.0, 0.0),
             speed: 0.1,
+            keys_pressed: HashSet::new(),
         }
     }
 
     fn process_input(&mut self, input: &KeyboardInput) {
         if let Some(keycode) = input.virtual_keycode {
-            match keycode {
+            match input.state {
+                ElementState::Pressed => {
+                    self.keys_pressed.insert(keycode);
+                }
+                ElementState::Released => {
+                    self.keys_pressed.remove(&keycode);
+                }
+            }
+        }
+    }
+
+    fn update_position(&mut self) {
+        for key in &self.keys_pressed {
+            match key {
                 VirtualKeyCode::W => self.position.z -= self.speed,
                 VirtualKeyCode::S => self.position.z += self.speed,
                 VirtualKeyCode::A => self.position.x -= self.speed,
@@ -274,8 +290,6 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     player.process_input(&input);
-                    camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
-                    queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
                 }
                 WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
@@ -286,6 +300,10 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 let now = std::time::Instant::now();
                 let duration = now - last_update_inst;
                 last_update_inst = now;
+
+                player.update_position();
+                camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
+                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
                 uniforms.update_model(duration.as_secs_f32());
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
