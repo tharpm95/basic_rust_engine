@@ -31,7 +31,7 @@ impl CameraController {
         self.pitch = self.pitch.clamp(-PI / 2.0, PI / 2.0);
     }
 
-    fn update_view_proj(&self, aspect_ratio: f32, uniforms: &mut Uniforms) {
+    fn update_view_proj(&self, aspect_ratio: f32, uniforms: &mut Uniforms, player_position: &Vector3<f32>) {
         let direction = Vector3::new(
             self.yaw.cos() * self.pitch.cos(),
             self.pitch.sin(),
@@ -39,7 +39,7 @@ impl CameraController {
         );
 
         // Direct the camera to face the cube located at the origin
-        let eye = Point3::new(0.0, 0.0, 5.0);
+        let eye = Point3::new(player_position.x, player_position.y, player_position.z + 5.0);
         let target = eye + direction; // Look towards the direction
         let up = Vector3::unit_y();
 
@@ -97,6 +97,32 @@ struct Vertex {
     position: [f32; 3],
 }
 
+struct Player {
+    position: Vector3<f32>,
+    speed: f32,
+}
+
+impl Player {
+    fn new() -> Self {
+        Self {
+            position: Vector3::new(0.0, 0.0, 0.0),
+            speed: 0.1,
+        }
+    }
+
+    fn process_input(&mut self, input: &KeyboardInput) {
+        if let Some(keycode) = input.virtual_keycode {
+            match keycode {
+                VirtualKeyCode::W => self.position.z -= self.speed,
+                VirtualKeyCode::S => self.position.z += self.speed,
+                VirtualKeyCode::A => self.position.x -= self.speed,
+                VirtualKeyCode::D => self.position.x += self.speed,
+                _ => {}
+            }
+        }
+    }
+}
+
 async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let mut size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -145,8 +171,9 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
     let mut uniforms = Uniforms::new();
     let mut camera_controller = CameraController::new(); 
+    let mut player = Player::new();
 
-    camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
+    camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
@@ -231,7 +258,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                         surface.configure(&device, &config);
 
                         // Update the aspect ratio and view projection
-                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
+                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
                         queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
                     }
                 }
@@ -240,10 +267,15 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                         let dx = position.x - previous_x;
                         let dy = position.y - previous_y;
                         camera_controller.process_mouse(dx, dy);
-                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms);
+                        camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
                         queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
                     }
                     camera_controller.last_mouse_position = Some((position.x, position.y));
+                }
+                WindowEvent::KeyboardInput { input, .. } => {
+                    player.process_input(&input);
+                    camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
+                    queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
                 }
                 WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
