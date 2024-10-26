@@ -263,7 +263,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Mailbox, // Switch to Mailbox
+        present_mode: wgpu::PresentMode::Fifo,
     };
 
     surface.configure(&device, &config);
