@@ -7,7 +7,7 @@ use winit::{
 use cgmath::{prelude::*, Matrix4, Point3, Rad, Vector3};
 use bytemuck::{Pod, Zeroable};
 use image::GenericImageView;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -160,17 +160,85 @@ impl Camera {
     }
 }
 
-fn main() {
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let monitor = window.primary_monitor();
-    window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(monitor)));
+struct Chunk {
+    position: (i32, i32),
+    vertices: Vec<Vertex>,
+    indices: Vec<u16>,
+}
 
-    // Attempt to grab the cursor and make it invisible
-    window.set_cursor_grab(true).unwrap();
-    window.set_cursor_visible(false);
+struct World {
+    chunks: HashMap<(i32, i32), Chunk>,
+    chunk_size: usize,
+}
 
-    pollster::block_on(run(event_loop, window));
+impl World {
+    fn new(chunk_size: usize) -> Self {
+        Self {
+            chunks: HashMap::new(),
+            chunk_size,
+        }
+    }
+
+    fn load_chunk(&mut self, chunk_pos: (i32, i32)) {
+        if !self.chunks.contains_key(&chunk_pos) {
+            let vertices = generate_chunk_vertices(chunk_pos, self.chunk_size);
+            let indices = generate_chunk_indices(self.chunk_size);
+
+            self.chunks.insert(chunk_pos, Chunk {
+                position: chunk_pos,
+                vertices,
+                indices,
+            });
+        }
+    }
+}
+
+fn generate_chunk_vertices(chunk_pos: (i32, i32), chunk_size: usize) -> Vec<Vertex> {
+    let mut vertices = Vec::new();
+    for x in 0..chunk_size {
+        for z in 0..chunk_size {
+            let base_position = [
+                x as f32 + (chunk_pos.0 * chunk_size as i32) as f32,
+                0.0,
+                z as f32 + (chunk_pos.1 * chunk_size as i32) as f32,
+            ];
+            for vertex in VERTICES.iter() {
+                let mut position = vertex.position;
+                position[0] += base_position[0];
+                position[2] += base_position[2];
+                vertices.push(Vertex {
+                    position,
+                    tex_coords: vertex.tex_coords,
+                });
+            }
+        }
+    }
+    vertices
+}
+
+fn generate_chunk_indices(chunk_size: usize) -> Vec<u16> {
+    let mut indices = Vec::new();
+    let vertex_count = INDICES.len() as u16;
+    for x in 0..chunk_size {
+        for z in 0..chunk_size {
+            let offset = ((x * chunk_size + z) * vertex_count as usize) as u16;
+            indices.extend(INDICES.iter().map(|i| i + offset));
+        }
+    }
+    indices
+}
+
+fn update_world(camera: &Camera, world: &mut World) {
+    let current_chunk_pos = (
+        (camera.eye.x / (world.chunk_size as f32)).floor() as i32,
+        (camera.eye.z / (world.chunk_size as f32)).floor() as i32,
+    );
+
+    for dx in -1..=1 {
+        for dz in -1..=1 {
+            world.load_chunk((current_chunk_pos.0 + dx, current_chunk_pos.1 + dz));
+        }
+    }
 }
 
 async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
@@ -199,20 +267,6 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     };
 
     surface.configure(&device, &config);
-
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(VERTICES),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
-
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Index Buffer"),
-        contents: bytemuck::cast_slice(INDICES),
-        usage: wgpu::BufferUsages::INDEX,
-    });
-
-    let index_count = INDICES.len() as u32;
 
     let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
@@ -285,7 +339,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -397,6 +451,26 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let mut camera = Camera::new();
     camera.aspect = config.width as f32 / config.height as f32;
 
+    let mut world = World::new(4); // Set the chunk size here
+    update_world(&camera, &mut world);
+
+    let mut dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64;
+    let mut dynamic_index_buffer_size = 1024 * 1024 * std::mem::size_of::<u16>() as u64;
+
+    let mut dynamic_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Dynamic Vertex Buffer"),
+        size: dynamic_vertex_buffer_size,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let mut dynamic_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Dynamic Index Buffer"),
+        size: dynamic_index_buffer_size,
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
     let mut last_update_inst = std::time::Instant::now();
     let mut pressed_keys = HashSet::new();
 
@@ -466,6 +540,49 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                     camera.move_up(-move_amount);
                 }
 
+                update_world(&camera, &mut world);
+                
+                let mut total_vertices: Vec<Vertex> = vec![];
+                let mut total_indices = vec![];
+                let mut index_offset = 0;
+
+                for chunk in world.chunks.values() {
+                    total_vertices.extend(&chunk.vertices);
+
+                    let indices: Vec<u16> = chunk
+                        .indices
+                        .iter()
+                        .map(|i| *i + index_offset as u16)
+                        .collect();
+                    index_offset += chunk.vertices.len() as u16;
+                    total_indices.extend(indices);
+                }
+
+                let total_vertices_bytes = (total_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
+                let total_indices_bytes = (total_indices.len() * std::mem::size_of::<u16>()) as u64;
+
+                if total_vertices_bytes > dynamic_vertex_buffer_size {
+                    dynamic_vertex_buffer_size = total_vertices_bytes;
+                    dynamic_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Expanded Vertex Buffer"),
+                        contents: bytemuck::cast_slice(&total_vertices),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    });
+                } else {
+                    queue.write_buffer(&dynamic_vertex_buffer, 0, bytemuck::cast_slice(&total_vertices));
+                }
+
+                if total_indices_bytes > dynamic_index_buffer_size {
+                    dynamic_index_buffer_size = total_indices_bytes;
+                    dynamic_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Expanded Index Buffer"),
+                        contents: bytemuck::cast_slice(&total_indices),
+                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                    });
+                } else {
+                    queue.write_buffer(&dynamic_index_buffer, 0, bytemuck::cast_slice(&total_indices));
+                }
+
                 let now = std::time::Instant::now();
                 let duration = now - last_update_inst;
                 last_update_inst = now;
@@ -503,9 +620,10 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
                     render_pass.set_pipeline(&render_pipeline);
                     render_pass.set_bind_group(0, &bind_group, &[]);
-                    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                    render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                    render_pass.draw_indexed(0..index_count, 0, 0..1);
+                    
+                    render_pass.set_vertex_buffer(0, dynamic_vertex_buffer.slice(..));
+                    render_pass.set_index_buffer(dynamic_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                    render_pass.draw_indexed(0..total_indices.len() as u32, 0, 0..1);
                 }
 
                 queue.submit(Some(encoder.finish()));
@@ -517,4 +635,17 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             _ => {},
         }
     });
+}
+
+fn main() {
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let monitor = window.primary_monitor();
+    window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(monitor)));
+
+    // Attempt to grab the cursor and make it invisible
+    window.set_cursor_grab(true).unwrap();
+    window.set_cursor_visible(false);
+
+    pollster::block_on(run(event_loop, window));
 }
