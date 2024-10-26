@@ -126,13 +126,24 @@ impl Player {
         }
     }
 
-    fn update_position(&mut self) {
+    fn update_position(&mut self, camera_controller: &CameraController) {
+        let forward = Vector3::new(
+            camera_controller.yaw.cos(),
+            0.0,
+            camera_controller.yaw.sin(),
+        );
+        let right = Vector3::new(
+            -camera_controller.yaw.sin(),
+            0.0,
+            camera_controller.yaw.cos(),
+        );
+
         for key in &self.keys_pressed {
             match key {
-                VirtualKeyCode::W => self.position.z -= self.speed,
-                VirtualKeyCode::S => self.position.z += self.speed,
-                VirtualKeyCode::A => self.position.x -= self.speed,
-                VirtualKeyCode::D => self.position.x += self.speed,
+                VirtualKeyCode::W => self.position += forward * self.speed,
+                VirtualKeyCode::S => self.position -= forward * self.speed,
+                VirtualKeyCode::A => self.position -= right * self.speed,
+                VirtualKeyCode::D => self.position += right * self.speed,
                 _ => {}
             }
         }
@@ -300,13 +311,13 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 let now = std::time::Instant::now();
                 let duration = now - last_update_inst;
                 last_update_inst = now;
-
-                player.update_position();
+        
+                player.update_position(&camera_controller); // Pass camera_controller here
                 camera_controller.update_view_proj(size.width as f32 / size.height as f32, &mut uniforms, &player.position);
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
-
+        
                 uniforms.update_model(duration.as_secs_f32());
-                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));        
 
                 let output = surface
                     .get_current_texture()
