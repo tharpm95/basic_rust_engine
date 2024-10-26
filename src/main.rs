@@ -137,13 +137,16 @@ impl Player {
             0.0,
             camera_controller.yaw.cos(),
         );
-
+        let up = Vector3::unit_y(); // Vector pointing upwards
+    
         for key in &self.keys_pressed {
             match key {
                 VirtualKeyCode::W => self.position += forward * self.speed,
                 VirtualKeyCode::S => self.position -= forward * self.speed,
                 VirtualKeyCode::A => self.position -= right * self.speed,
                 VirtualKeyCode::D => self.position += right * self.speed,
+                VirtualKeyCode::Space => self.position += up * self.speed, // Move up
+                VirtualKeyCode::LShift => self.position -= up * self.speed, // Move down
                 _ => {}
             }
         }
@@ -262,7 +265,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             topology: wgpu::PrimitiveTopology::TriangleList,
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
+            cull_mode: None,
             ..Default::default()
         },
         depth_stencil: None, 
