@@ -152,6 +152,12 @@ impl Camera {
         self.eye += right * amount;
         self.target += right * amount;
     }
+
+    fn move_up(&mut self, amount: f32) {
+        let up = Vector3::unit_y();
+        self.eye += up * amount;
+        self.target += up * amount;
+    }
 }
 
 fn main() {
@@ -440,7 +446,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             },
             Event::RedrawRequested(_) => {
                 // Update camera based on input
-                let move_amount = 0.02;
+                let move_amount = 0.05;
                 if pressed_keys.contains(&VirtualKeyCode::W) {
                     camera.move_forward(move_amount);
                 }
@@ -452,6 +458,12 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 }
                 if pressed_keys.contains(&VirtualKeyCode::D) {
                     camera.strafe_right(move_amount);
+                }
+                if pressed_keys.contains(&VirtualKeyCode::Space) {
+                    camera.move_up(move_amount);
+                }
+                if pressed_keys.contains(&VirtualKeyCode::LShift) {
+                    camera.move_up(-move_amount);
                 }
 
                 let now = std::time::Instant::now();
