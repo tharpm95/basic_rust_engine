@@ -263,7 +263,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Fifo,
+        present_mode: wgpu::PresentMode::Mailbox, // Switch to Mailbox
     };
 
     surface.configure(&device, &config);
@@ -316,14 +316,14 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,
-        address_mode_w: wgpu::AddressMode::Repeat,
+        address_mode_w: wgpu::AddressMode::Repeat, // This line is added
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Linear,
         lod_min_clamp: 0.0,
         lod_max_clamp: 100.0,
         compare: None,
-        anisotropy_clamp: None,
+        anisotropy_clamp: std::num::NonZeroU8::new(16), // Consider enabling anisotropic filtering
         border_color: None,
         label: Some("Texture Sampler"),
     });
@@ -471,7 +471,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         mapped_at_creation: false,
     });
 
-    let mut last_update_inst = std::time::Instant::now();
+    let mut last_frame_time = std::time::Instant::now();
     let mut pressed_keys = HashSet::new();
 
     event_loop.run(move |event, _, control_flow| {
@@ -583,11 +583,12 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                     queue.write_buffer(&dynamic_index_buffer, 0, bytemuck::cast_slice(&total_indices));
                 }
 
-                let now = std::time::Instant::now();
-                let duration = now - last_update_inst;
-                last_update_inst = now;
+                let current_frame_time = std::time::Instant::now();
+                let dt = current_frame_time.duration_since(last_frame_time).as_secs_f32();
+                last_frame_time = current_frame_time;
 
-                uniforms.update_model(duration.as_secs_f32() * 0.1);
+                // Use dt for smooth rotation and movements
+                uniforms.update_model(dt * 0.1); // Ensures model rotates at a steady speed
                 uniforms.update_view_proj(&camera);
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
 
