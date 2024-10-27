@@ -4,8 +4,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use cgmath::{prelude::*, Matrix4, Rad};
-use bytemuck::{Pod, Zeroable};
 use image::GenericImageView;
 use std::collections::HashSet;
 
@@ -18,32 +16,8 @@ use world::World;
 mod vertex;
 use vertex::{Vertex, VERTICES, INDICES};
 
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-struct Uniforms {
-    view_proj: [[f32; 4]; 4],
-    model: [[f32; 4]; 4],
-}
-
-impl Uniforms {
-    fn new() -> Self {
-        Self {
-            view_proj: Matrix4::identity().into(),
-            model: Matrix4::identity().into(),
-        }
-    }
-
-    fn update_model(&mut self, rotation: f32) {
-        let model = Matrix4::from_angle_y(Rad(rotation));
-        self.model = model.into();
-    }
-
-    fn update_view_proj(&mut self, camera: &Camera) {
-        let view = Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
-        let projection = cgmath::perspective(Rad(camera.fovy), camera.aspect, camera.znear, camera.zfar);
-        self.view_proj = (projection * view).into();
-    }
-}
+mod uniforms;
+use uniforms::Uniforms;
 
 fn generate_chunk_vertices(chunk_pos: (i32, i32), chunk_size: usize) -> Vec<Vertex> {
     let mut vertices = Vec::new();
