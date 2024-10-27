@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use crate::{Vertex, generate_chunk_vertices, generate_chunk_indices};
+use crate::vertex::Vertex;
+use crate::chunk::{generate_chunk_vertices, generate_chunk_indices};
 
 pub struct Chunk {
     pub vertices: Vec<Vertex>,
