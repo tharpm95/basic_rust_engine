@@ -1,16 +1,16 @@
+use std::sync::{Arc, Mutex};
 use wgpu::util::DeviceExt;
 use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
 };
-use std::collections::HashSet;
 
 use crate::camera::Camera;
 use crate::world::World;
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
-use crate::texture::Texture; // Correctly import the Texture struct
+use crate::texture::Texture;
+use crate::event_loop::handle_event_loop; // Correctly import the handle_event_loop function
 
 pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let size = window.inner_size();
@@ -29,7 +29,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         .unwrap();
 
     let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
-    let mut config = wgpu::SurfaceConfiguration {
+    let config = wgpu::SurfaceConfiguration { // Removed unnecessary mut
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
         width: size.width,
@@ -47,7 +47,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     // Use the Texture module to load the texture
     let texture = Texture::from_image(&device, &queue, "P:\\Code\\mutetra\\src\\images\\dirt\\dirt.png");
 
-    let mut uniforms = Uniforms::new();
+    let uniforms = Uniforms::new(); // Removed unnecessary mut
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
         contents: bytemuck::cast_slice(&[uniforms]),
@@ -167,192 +167,58 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         multiview: None,
     });
 
-    let mut camera = Camera::new();
-    camera.aspect = config.width as f32 / config.height as f32;
-
-    let mut world = World::new(4); // Set the chunk size here
+    let camera = Camera::new();
+    let mut world = World::new(4); // Set the chunk size here and make world mutable
     update_world(&camera, &mut world);
 
-    let mut dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64;
-    let mut dynamic_index_buffer_size = 1024 * 1024 * std::mem::size_of::<u16>() as u64;
+    let dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64; // Removed unnecessary mut
+    let dynamic_index_buffer_size = 1024 * 1024 * std::mem::size_of::<u16>() as u64; // Removed unnecessary mut
 
-    let mut dynamic_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+    let dynamic_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Dynamic Vertex Buffer"),
         size: dynamic_vertex_buffer_size,
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
 
-    let mut dynamic_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+    let dynamic_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Dynamic Index Buffer"),
         size: dynamic_index_buffer_size,
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
 
-    let mut last_frame_time = std::time::Instant::now();
-    let mut pressed_keys = HashSet::new();
+    // Wrap necessary arguments in Arc and Mutex
+    let device = Arc::new(device);
+    let queue = Arc::new(queue);
+    let surface = Arc::new(surface);
+    let config = Arc::new(Mutex::new(config));
+    let bind_group = Arc::new(bind_group);
+    let render_pipeline = Arc::new(render_pipeline);
+    let dynamic_vertex_buffer = Arc::new(Mutex::new(dynamic_vertex_buffer));
+    let dynamic_index_buffer = Arc::new(Mutex::new(dynamic_index_buffer));
+    let uniform_buffer = Arc::new(uniform_buffer);
+    let depth_texture_view = Arc::new(depth_texture_view);
+    let camera = Arc::new(Mutex::new(camera));
+    let world = Arc::new(Mutex::new(world));
+    let uniforms = Arc::new(Mutex::new(uniforms));
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
-        match event {
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::Resized(new_size) => {
-                    if new_size.width > 0 && new_size.height > 0 {
-                        config.width = new_size.width;
-                        config.height = new_size.height;
-                        camera.aspect = config.width as f32 / config.height as f32;
-                        surface.configure(&device, &config);
-                        uniforms.update_view_proj(&camera);
-                        queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
-                    }
-                }
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::KeyboardInput {
-                    input: KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
-                        ..
-                    },
-                    .. 
-                } => {
-                    match state {
-                        ElementState::Pressed => {
-                            pressed_keys.insert(keycode);
-                        }
-                        ElementState::Released => {
-                            pressed_keys.remove(&keycode);
-                        }
-                    }
-                }
-                WindowEvent::CursorMoved { device_id: _, position, .. } => {
-                    let xoffset = position.x as f32 - (size.width / 2) as f32;
-                    let yoffset = (size.height / 2) as f32 - position.y as f32;
-
-                    let sensitivity = 0.005;
-                    camera.process_mouse_movement(xoffset, yoffset, sensitivity);
-
-                    let _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(size.width / 2, size.height / 2));
-                }
-                _ => {}
-            },
-            Event::RedrawRequested(_) => {
-                // Update camera based on input
-                let move_amount = 0.05;
-                if pressed_keys.contains(&VirtualKeyCode::W) {
-                    camera.move_forward(move_amount);
-                }
-                if pressed_keys.contains(&VirtualKeyCode::S) {
-                    camera.move_forward(-move_amount);
-                }
-                if pressed_keys.contains(&VirtualKeyCode::A) {
-                    camera.strafe_right(-move_amount);
-                }
-                if pressed_keys.contains(&VirtualKeyCode::D) {
-                    camera.strafe_right(move_amount);
-                }
-                if pressed_keys.contains(&VirtualKeyCode::Space) {
-                    camera.move_up(move_amount);
-                }
-                if pressed_keys.contains(&VirtualKeyCode::LShift) {
-                    camera.move_up(-move_amount);
-                }
-
-                update_world(&camera, &mut world);
-                
-                let mut total_vertices: Vec<Vertex> = vec![];
-                let mut total_indices = vec![];
-                let mut index_offset = 0;
-
-                for chunk in world.chunks.values() {
-                    total_vertices.extend(&chunk.vertices);
-
-                    let indices: Vec<u16> = chunk
-                        .indices
-                        .iter()
-                        .map(|i| *i + index_offset as u16)
-                        .collect();
-                    index_offset += chunk.vertices.len() as u16;
-                    total_indices.extend(indices);
-                }
-
-                let total_vertices_bytes = (total_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
-                let total_indices_bytes = (total_indices.len() * std::mem::size_of::<u16>()) as u64;
-
-                if total_vertices_bytes > dynamic_vertex_buffer_size {
-                    dynamic_vertex_buffer_size = total_vertices_bytes;
-                    dynamic_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Expanded Vertex Buffer"),
-                        contents: bytemuck::cast_slice(&total_vertices),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    });
-                } else {
-                    queue.write_buffer(&dynamic_vertex_buffer, 0, bytemuck::cast_slice(&total_vertices));
-                }
-
-                if total_indices_bytes > dynamic_index_buffer_size {
-                    dynamic_index_buffer_size = total_indices_bytes;
-                    dynamic_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Expanded Index Buffer"),
-                        contents: bytemuck::cast_slice(&total_indices),
-                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                    });
-                } else {
-                    queue.write_buffer(&dynamic_index_buffer, 0, bytemuck::cast_slice(&total_indices));
-                }
-
-                let current_frame_time = std::time::Instant::now();
-                let dt = current_frame_time.duration_since(last_frame_time).as_secs_f32();
-                last_frame_time = current_frame_time;
-
-                // Use dt for smooth rotation and movements
-                uniforms.update_model(dt * 0.1); // Ensures model rotates at a steady speed
-                uniforms.update_view_proj(&camera);
-                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
-
-                let output = surface.get_current_texture().expect("Failed to acquire next swap chain texture");
-                let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-                {
-                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Render Pass"),
-                        color_attachments: &[wgpu::RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                                store: true,
-                            },
-                        }],
-                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                            view: &depth_texture_view,
-                            depth_ops: Some(wgpu::Operations { 
-                                load: wgpu::LoadOp::Clear(1.0),
-                                store: true
-                            }),
-                            stencil_ops: None,
-                        }),
-                    });
-
-                    render_pass.set_pipeline(&render_pipeline);
-                    render_pass.set_bind_group(0, &bind_group, &[]);
-                    
-                    render_pass.set_vertex_buffer(0, dynamic_vertex_buffer.slice(..));
-                    render_pass.set_index_buffer(dynamic_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                    render_pass.draw_indexed(0..total_indices.len() as u32, 0, 0..1);
-                }
-
-                queue.submit(Some(encoder.finish()));
-                output.present();
-            },
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            },
-            _ => {}
-        }
-    });
+    // Call the handle_event_loop function from the event_loop module
+    handle_event_loop(
+        event_loop,
+        window,
+        device,
+        queue,
+        surface,
+        config,
+        bind_group,
+        render_pipeline,
+        dynamic_vertex_buffer,
+        dynamic_index_buffer,
+        uniform_buffer,
+        depth_texture_view,
+        camera,
+        world,
+        uniforms,
+    );
 }

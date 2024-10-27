@@ -11,6 +11,7 @@ mod uniforms;
 mod chunk;
 mod world_update;
 mod texture; // Declare the texture module
+mod event_loop; // Declare the event_loop module
 
 fn main() {
     let event_loop = EventLoop::new();
