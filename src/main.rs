@@ -7,10 +7,13 @@ use winit::{
 use cgmath::{prelude::*, Matrix4, Rad};
 use bytemuck::{Pod, Zeroable};
 use image::GenericImageView;
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 
 mod camera;
 use camera::Camera;
+
+mod world;
+use world::World;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -90,39 +93,6 @@ impl Uniforms {
         let view = Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
         let projection = cgmath::perspective(Rad(camera.fovy), camera.aspect, camera.znear, camera.zfar);
         self.view_proj = (projection * view).into();
-    }
-}
-
-struct Chunk {
-    position: (i32, i32),
-    vertices: Vec<Vertex>,
-    indices: Vec<u16>,
-}
-
-struct World {
-    chunks: HashMap<(i32, i32), Chunk>,
-    chunk_size: usize,
-}
-
-impl World {
-    fn new(chunk_size: usize) -> Self {
-        Self {
-            chunks: HashMap::new(),
-            chunk_size,
-        }
-    }
-
-    fn load_chunk(&mut self, chunk_pos: (i32, i32)) {
-        if !self.chunks.contains_key(&chunk_pos) {
-            let vertices = generate_chunk_vertices(chunk_pos, self.chunk_size);
-            let indices = generate_chunk_indices(self.chunk_size);
-
-            self.chunks.insert(chunk_pos, Chunk {
-                position: chunk_pos,
-                vertices,
-                indices,
-            });
-        }
     }
 }
 
@@ -429,7 +399,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                         virtual_keycode: Some(keycode),
                         ..
                     },
-                    ..
+                    .. 
                 } => {
                     match state {
                         ElementState::Pressed => {
