@@ -10,6 +10,7 @@ mod vertex;
 mod uniforms;
 mod chunk;
 mod world_update;
+mod texture; // Declare the texture module
 
 fn main() {
     let event_loop = EventLoop::new();

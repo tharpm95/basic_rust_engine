@@ -3,7 +3,6 @@ use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
 };
-use image::GenericImageView;
 use std::collections::HashSet;
 
 use crate::camera::Camera;
@@ -11,6 +10,7 @@ use crate::world::World;
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
+use crate::texture::Texture; // Correctly import the Texture struct
 
 pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let size = window.inner_size();
@@ -44,60 +44,8 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
     });
 
-    let img_path = "P:\\Code\\mutetra\\src\\images\\dirt\\dirt.png";  // Ensure path is correct
-
-    let img = image::open(img_path).expect("Failed to open texture image: Check file path and existence");
-
-    let rgba = img.to_rgba8();
-    let dimensions = img.dimensions();
-
-    let texture_size = wgpu::Extent3d {
-        width: dimensions.0,
-        height: dimensions.1,
-        depth_or_array_layers: 1,
-    };
-
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Texture"),
-        size: texture_size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-    });
-
-    queue.write_texture(
-        wgpu::ImageCopyTexture {
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        &rgba,
-        wgpu::ImageDataLayout {
-            offset: 0,
-            bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
-            rows_per_image: std::num::NonZeroU32::new(dimensions.1),
-        },
-        texture_size,
-    );
-
-    let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        address_mode_u: wgpu::AddressMode::Repeat,
-        address_mode_v: wgpu::AddressMode::Repeat,
-        address_mode_w: wgpu::AddressMode::Repeat, // This line is added
-        mag_filter: wgpu::FilterMode::Linear,
-        min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Linear,
-        lod_min_clamp: 0.0,
-        lod_max_clamp: 100.0,
-        compare: None,
-        anisotropy_clamp: std::num::NonZeroU8::new(16), // Consider enabling anisotropic filtering
-        border_color: None,
-        label: Some("Texture Sampler"),
-    });
+    // Use the Texture module to load the texture
+    let texture = Texture::from_image(&device, &queue, "P:\\Code\\mutetra\\src\\images\\dirt\\dirt.png");
 
     let mut uniforms = Uniforms::new();
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -147,11 +95,11 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&texture_view),
+                resource: wgpu::BindingResource::TextureView(&texture.view),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(&texture.sampler),
             },
         ],
         label: Some("uniform_texture_bind_group"),
