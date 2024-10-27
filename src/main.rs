@@ -22,18 +22,8 @@ use uniforms::Uniforms;
 mod chunk;
 use chunk::{generate_chunk_vertices, generate_chunk_indices};
 
-fn update_world(camera: &Camera, world: &mut World) {
-    let current_chunk_pos = (
-        (camera.eye.x / (world.chunk_size as f32)).floor() as i32,
-        (camera.eye.z / (world.chunk_size as f32)).floor() as i32,
-    );
-
-    for dx in -1..=1 {
-        for dz in -1..=1 {
-            world.load_chunk((current_chunk_pos.0 + dx, current_chunk_pos.1 + dz));
-        }
-    }
-}
+mod world_update;
+use world_update::update_world;
 
 async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     let size = window.inner_size();
@@ -427,7 +417,7 @@ async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             Event::MainEventsCleared => {
                 window.request_redraw();
             },
-            _ => {},
+            _ => {}
         }
     });
 }
