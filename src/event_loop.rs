@@ -164,7 +164,7 @@ pub fn handle_event_loop(
 
                 // Use dt for smooth rotation and movements
                 let mut uniforms = uniforms.lock().unwrap();
-                uniforms.update_model(dt * 0.1); // Ensures model rotates at a steady speed
+                uniforms.update_model(dt * 1.0); // Ensures model rotates at a steady speed
                 uniforms.update_view_proj(&camera);
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
 
