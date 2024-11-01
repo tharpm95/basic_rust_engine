@@ -41,6 +41,10 @@ pub fn handle_event_loop(
 
     let mut log_frame_count = 0; // Frame counter for logging
 
+    // Track the last known camera position
+    let mut last_camera_position = [0.0, 0.0, 0.0];
+    let movement_threshold = 10.0; // Define a threshold for movement
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -117,13 +121,24 @@ pub fn handle_event_loop(
                     camera.move_up(-move_amount);
                 }
 
-                let mut world = world.lock().unwrap();
-                update_world(&camera, &mut world);
+                // Check if the camera has moved far enough
+                let current_position = [camera.eye.x, camera.eye.y, camera.eye.z]; // Accessing the camera's position
+                let distance_moved = ((current_position[0] - last_camera_position[0]).powi(2) +
+                                       (current_position[1] - last_camera_position[1]).powi(2) +
+                                       (current_position[2] - last_camera_position[2]).powi(2)).sqrt();
+
+                if distance_moved > movement_threshold {
+                    let mut world = world.lock().unwrap();
+                    update_world(&camera, &mut world);
+                    last_camera_position = current_position; // Update last known position
+                }
                 
                 let mut total_vertices: Vec<Vertex> = vec![];
                 let mut total_indices: Vec<u16> = vec![];
                 let mut index_offset: u16 = 0; // Changed back to u16
 
+                // Lock the world to access chunks
+                let world = world.lock().unwrap();
                 for chunk in world.chunks.values() {
                     total_vertices.extend(&chunk.vertices);
 
