@@ -853,6 +853,7 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "image",
+ "lazy_static",
  "pollster",
  "wgpu",
  "winit",

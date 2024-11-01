@@ -1,4 +1,5 @@
 use image::GenericImageView;
+use std::sync::{Arc, Mutex};
 
 #[allow(dead_code)]
 pub struct Texture {
@@ -63,4 +64,17 @@ impl Texture {
 
         Self { texture, view, sampler }
     }
+}
+
+// Singleton for texture loading
+lazy_static::lazy_static! {
+    static ref TEXTURE: Mutex<Option<Arc<Texture>>> = Mutex::new(None);
+}
+
+pub fn get_texture(device: &wgpu::Device, queue: &wgpu::Queue, path: &str) -> Arc<Texture> {
+    let mut texture = TEXTURE.lock().unwrap();
+    if texture.is_none() {
+        *texture = Some(Arc::new(Texture::from_image(device, queue, path)));
+    }
+    texture.as_ref().unwrap().clone() // Return a clone of the Arc
 }

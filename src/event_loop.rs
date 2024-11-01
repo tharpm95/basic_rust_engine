@@ -9,6 +9,7 @@ use crate::world::World;
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
+use crate::texture::get_texture; // Import the get_texture function
 use wgpu::util::DeviceExt; // Import DeviceExt for create_buffer_init
 
 pub fn handle_event_loop(
@@ -34,6 +35,9 @@ pub fn handle_event_loop(
     // Manually track buffer sizes
     let dynamic_vertex_buffer_size = Arc::new(Mutex::new(1024 * 1024 * std::mem::size_of::<Vertex>() as u64));
     let dynamic_index_buffer_size = Arc::new(Mutex::new(1024 * 1024 * std::mem::size_of::<u16>() as u64));
+
+    // Load the texture once
+    let _texture = get_texture(&device, &queue, "src/images/dirt/dirt.png"); // Adjust the path as necessary
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -159,7 +163,7 @@ pub fn handle_event_loop(
 
                 let current_frame_time = std::time::Instant::now();
                 let mut last_frame_time = last_frame_time.lock().unwrap();
-                let dt = current_frame_time.duration_since(*last_frame_time).as_secs_f32();
+                let _dt = current_frame_time.duration_since(*last_frame_time).as_secs_f32();
                 *last_frame_time = current_frame_time;
 
                 // Use a fixed rotation speed to reduce tearing

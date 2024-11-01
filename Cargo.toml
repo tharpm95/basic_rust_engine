@@ -13,4 +13,5 @@ winit = "0.26"
 pollster = "0.2"
 cgmath = "0.18"
 bytemuck = { version = "1.19", features = ["derive"] }
-image = "0.24" # Add this line for image loading
+image = "0.24"
+lazy_static = "1.4"  # Added lazy_static dependency
