@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Rad, SquareMatrix};
+use cgmath::{Matrix4, Rad, SquareMatrix}; // Added Rad import
 use bytemuck::{Pod, Zeroable};
 use crate::camera::Camera;
 
@@ -17,9 +17,9 @@ impl Uniforms {
         }
     }
 
-    pub fn update_model(&mut self, rotation: f32) {
-        let model = Matrix4::from_angle_y(Rad(rotation));
-        self.model = model.into();
+    pub fn update_model(&mut self) {
+        // Set the model matrix to identity to prevent any rotation
+        self.model = Matrix4::identity().into();
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera) {

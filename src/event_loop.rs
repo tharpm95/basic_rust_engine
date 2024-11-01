@@ -171,9 +171,9 @@ pub fn handle_event_loop(
                 let _dt = current_frame_time.duration_since(*last_frame_time).as_secs_f32();
                 *last_frame_time = current_frame_time;
 
-                // Use a fixed rotation speed to reduce tearing
+                // Update the model without rotation
                 let mut uniforms = uniforms.lock().unwrap();
-                uniforms.update_model(0.05); // Fixed rotation speed
+                uniforms.update_model(); // No rotation applied
                 uniforms.update_view_proj(&camera);
                 queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
 

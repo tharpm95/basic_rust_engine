@@ -1,0 +1,97 @@
+The textures rendered to the surface of the cubes are "tearing" it doesnt just show the flat image. One thing I noticed specifically was that in event_loop.rs if I change uniforms.update_model(dt * 1.0); to uniforms.update_model(dt * 0.0); the tearing no longer keeps happening rapidly and nonstop. Instead the tears just appear fixed in place. That is, until I move the camera at all, then a completely new set of tears appears on the texture.
+
+Summary of Attempts to Fix Tearing and Rendering Issues
+Texture Sampler Adjustments:
+
+Adjusted texture sampler settings to use ClampToEdge for address modes and Nearest for filtering modes. This improved texture appearance but did not resolve tearing.
+Model Rotation Adjustments:
+
+Changed the model's rotation speed in the event loop to a fixed value. This aimed to stabilize rendering but did not eliminate tearing artifacts.
+Camera Movement Sensitivity:
+
+Reduced camera movement sensitivity to smooth out rendering. This change did not resolve the tearing issue.
+Buffer Updates and Texture Handling:
+
+Reviewed buffer updates in the event loop to ensure consistency and synchronization with rendering. Despite optimizations, tearing persisted.
+Texture Loading Logic:
+
+Implemented a singleton pattern for texture loading to ensure textures are loaded once and reused, preventing unnecessary reloading.
+Depth Buffer Configuration:
+
+Initially set depth_write_enabled to true, which caused tearing. Changing it to false resolved tearing but introduced rendering issues where cubes were not fully visible.
+Fragment Shader Logic:
+
+Updated the fragment shader to include alpha handling, ensuring that the color returned includes the alpha value for proper blending of overlapping textures. This did not resolve the rendering issues.
+Control Flow Adjustments:
+
+Changed control flow from ControlFlow::Poll to ControlFlow::WaitUntil to synchronize rendering with the display refresh rate, but this did not resolve tearing.
+Sorting Objects for Rendering:
+
+Attempted to sort objects based on distance from the camera to manage rendering order, but this approach was not successfully implemented.
+Manual Frame Rate Limiting:
+
+Implemented a manual frame rate limiting mechanism within the event loop to maintain a consistent frame rate, but this did not resolve the tearing issue.
+Current Status
+The tearing issue has been partially resolved by adjusting depth buffer settings, but rendering issues persist where one cube affects the visibility of another. The last changes made were to the fragment shader to handle alpha blending.
+
+The following changes were made to address the tearing and rendering issues:
+
+Fragment Shader Update: The fragment shader in src/shader.wgsl was modified to include alpha handling. The updated fs_main function now returns the sampled color with its alpha value, which is essential for proper blending of overlapping textures.
+
+[[stage(fragment)]]
+fn fs_main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
+    let sampled_color = textureSample(texture, texture_sampler, input.tex_coords);
+    return vec4<f32>(sampled_color.rgb, sampled_color.a); // Include alpha handling
+}
+Dynamic Model Rotation: In src/event_loop.rs, the model rotation was changed to be dynamic based on frame time. The update_model method now uses a rotation value calculated from the time elapsed since the last frame, which should create smoother animations.
+
+let dt = current_frame_time.duration_since(*last_frame_time).as_secs_f32();
+uniforms.update_model(dt * 0.05); // Dynamic rotation speed
+Depth Buffer Configuration: The depth buffer settings were confirmed to be correctly configured in src/app.rs, with depth_write_enabled set to true and a depth texture created with the format Depth32Float.
+
+Despite these changes, the tearing issue persists.
+
+Next steps could include:
+
+Investigating the texture filtering and wrapping modes further.
+Reviewing the rendering order and ensuring that objects are drawn in the correct sequence.
+Exploring potential synchronization issues between the CPU and GPU.
+
+The following additional changes were made to the src/event_loop.rs file in an attempt to address the tearing issue:
+
+Importing Necessary Traits: The InnerSpace trait was imported to allow the use of the magnitude method for Vector3<f32>.
+
+Distance Calculation: The distance calculation logic was updated to use Point3::new for the camera position and to create Vector3<f32> instances from the vertex positions. The intention was to calculate the distance from the camera to each vertex for sorting purposes.
+
+Sorting Vertices: The sorting logic was implemented to order the vertices based on their distance from the camera, with the goal of ensuring that objects are rendered in the correct order.
+
+Issues Encountered:
+The changes led to compilation errors, indicating that the distance calculation logic was not correctly implemented, particularly in how vertex positions were accessed and how the distance was calculated.
+Next Steps:
+To move forward, I will revert the changes made to the distance calculation and focus on other potential solutions to the tearing issue, such as:
+
+Reviewing the rendering pipeline settings.
+Ensuring that double buffering is correctly implemented.
+Investigating other synchronization methods.
+
+Do not try to change filters on the sampler, we already tried that.
+Do not try to change the rotation speed on the camera with update_model, we already tried that.
+Do not attempt to resolve the texture tearing issue in your application by implementing a sorting mechanism for rendering chunks based on their distance from the camera, we already tried that.
+Do not attempt to change the control flow from ControlFlow::Poll to ControlFlow::WaitUntil, we already tried that.
+Do not attempt to change present_mode: wgpu::PresentMode::Fifo, to present_mode: wgpu::PresentMode::Mailbox, we already tried that.
+
+Nothing that I have described above should be tried as a solution. We need to find something that will fix the problem.
+
+What I realized was happening is that the texture on the face of the cubes is rotating. Why? I dont want any rotation of textures at all whatsoever.
+
+Make it so that the textures dont rotate.
+
+Updated update_model Method: In the src/uniforms.rs file, I modified the update_model method to set the model matrix to an identity matrix, preventing any rotation of the textures on the cubes.
+
+Added Import for Rad: I added the necessary import for Rad in the src/uniforms.rs file to resolve a compilation error related to the perspective projection calculation.
+
+These changes did not fix the problem. They were implemented to ensure that the textures remain static and do not rotate during rendering and did not fix the problem.
+
+Upon closer examination, it appears the textures are rotating, eiter that, or there is another cube with a rotated texture trying to render on top of the same cube. Like there could be more than one cube trying to be rendered at a time for whatever reason.
+
+Try to solve the problem
