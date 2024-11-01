@@ -94,4 +94,12 @@ Do not attempt to change present_mode: wgpu::PresentMode::Fifo, to present_mode:
 
 Nothing that I have described above should be tried as a solution. We need to find something that will fix the problem.
 
+I modified the src/chunk.rs file to ensure that the texture coordinates for each vertex are unique based on the chunk's position. Specifically, I adjusted the texture coordinates by adding a scaled value derived from the chunk's position to the original texture coordinates. This was intended to prevent overlapping textures and reduce tearing artifacts.
+
+The perceived effects of these changes are as follows:
+
+The chunk centered at (0,0) appears more normal, but tearing artifacts are still present.
+In the surrounding chunks, the textures appear stretched in one direction, with pixels from the edges being dragged across the entire face of the cube.
+These observations suggest that while the changes improved the situation, further adjustments may be needed to fully resolve the tearing and stretching issues.
+
 Try to solve the problem

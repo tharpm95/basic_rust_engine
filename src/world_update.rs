@@ -18,7 +18,7 @@ pub fn update_world(camera: &Camera, world: &mut World) {
     // This logic can be adjusted based on the desired view distance
     let unload_distance = 2; // Example distance to unload chunks
     let keys_to_remove: Vec<(i32, i32)> = world.chunks.keys()
-        .filter(|&(pos)| {
+        .filter(|&pos| {
             (pos.0 < current_chunk_pos.0 - unload_distance || pos.0 > current_chunk_pos.0 + unload_distance) ||
             (pos.1 < current_chunk_pos.1 - unload_distance || pos.1 > current_chunk_pos.1 + unload_distance)
         })

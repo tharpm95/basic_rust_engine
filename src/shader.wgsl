@@ -30,10 +30,6 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 fn fs_main(input: VertexOutput) -> [[location(0)]] vec4<f32> {
     let sampled_color = textureSample(texture, texture_sampler, input.tex_coords);
     
-    // Log texture coordinates and sampled color
-    let log_coords = vec4<f32>(input.tex_coords, 0.0, 1.0); // Create a vec4 for logging
-    let log_color = vec4<f32>(sampled_color.rgb, sampled_color.a); // Create a vec4 for the sampled color
-    
     // Output the sampled color
     return vec4<f32>(sampled_color.rgb, sampled_color.a); // Include alpha handling
 }

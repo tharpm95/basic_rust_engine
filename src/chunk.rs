@@ -13,9 +13,13 @@ pub fn generate_chunk_vertices(chunk_pos: (i32, i32), chunk_size: usize) -> Vec<
                 let mut position = vertex.position;
                 position[0] += base_position[0];
                 position[2] += base_position[2];
+
+                // Keep texture coordinates consistent across all chunks
+                let tex_coords = vertex.tex_coords;
+
                 vertices.push(Vertex {
                     position,
-                    tex_coords: vertex.tex_coords,
+                    tex_coords,
                 });
             }
         }

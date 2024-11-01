@@ -8,41 +8,41 @@ pub struct Vertex {
 }
 
 pub const VERTICES: &[Vertex] = &[
-    // Front face
-    Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [0.0, 0.0] },
-    Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [1.0, 0.0] },
-    Vertex { position: [ 1.0,  1.0,  1.0], tex_coords: [1.0, 1.0] },
-    Vertex { position: [-1.0,  1.0,  1.0], tex_coords: [0.0, 1.0] },
+// Front face
+Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [0.0, 0.0] },
+Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [1.0, 0.0] },
+Vertex { position: [ 1.0,  1.0,  1.0], tex_coords: [1.0, 1.0] },
+Vertex { position: [-1.0,  1.0,  1.0], tex_coords: [0.0, 1.0] },
 
-    // Back face
-    Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [1.0, 0.0] },
-    Vertex { position: [-1.0,  1.0, -1.0], tex_coords: [1.0, 1.0] },
-    Vertex { position: [ 1.0,  1.0, -1.0], tex_coords: [0.0, 1.0] },
-    Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [0.0, 0.0] },
+// Back face
+Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [0.0, 0.0] },
+Vertex { position: [-1.0,  1.0, -1.0], tex_coords: [0.0, 1.0] },
+Vertex { position: [ 1.0,  1.0, -1.0], tex_coords: [1.0, 1.0] },
+Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [1.0, 0.0] },
 
-    // Top face
-    Vertex { position: [-1.0, 1.0, -1.0], tex_coords: [0.0, 1.0] },
-    Vertex { position: [-1.0, 1.0,  1.0], tex_coords: [0.0, 0.0] },
-    Vertex { position: [ 1.0, 1.0,  1.0], tex_coords: [1.0, 0.0] },
-    Vertex { position: [ 1.0, 1.0, -1.0], tex_coords: [1.0, 1.0] },
+// Top face
+Vertex { position: [-1.0, 1.0, -1.0], tex_coords: [0.0, 1.0] },
+Vertex { position: [-1.0, 1.0,  1.0], tex_coords: [0.0, 0.0] },
+Vertex { position: [ 1.0, 1.0,  1.0], tex_coords: [1.0, 0.0] },
+Vertex { position: [ 1.0, 1.0, -1.0], tex_coords: [1.0, 1.0] },
 
-    // Bottom face
-    Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [1.0, 1.0] },
-    Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [0.0, 1.0] },
-    Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [0.0, 0.0] },
-    Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [1.0, 0.0] },
+// Bottom face
+Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [0.0, 0.0] },
+Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [1.0, 0.0] },
+Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [1.0, 1.0] },
+Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [0.0, 1.0] },
 
-    // Right face
-    Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [1.0, 0.0] },
-    Vertex { position: [ 1.0,  1.0, -1.0], tex_coords: [1.0, 1.0] },
-    Vertex { position: [ 1.0,  1.0,  1.0], tex_coords: [0.0, 1.0] },
-    Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [0.0, 0.0] },
+// Right face
+Vertex { position: [ 1.0, -1.0, -1.0], tex_coords: [0.0, 0.0] },
+Vertex { position: [ 1.0,  1.0, -1.0], tex_coords: [0.0, 1.0] },
+Vertex { position: [ 1.0,  1.0,  1.0], tex_coords: [1.0, 1.0] },
+Vertex { position: [ 1.0, -1.0,  1.0], tex_coords: [1.0, 0.0] },
 
-    // Left face
-    Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [0.0, 0.0] },
-    Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [1.0, 0.0] },
-    Vertex { position: [-1.0,  1.0,  1.0], tex_coords: [1.0, 1.0] },
-    Vertex { position: [-1.0,  1.0, -1.0], tex_coords: [0.0, 1.0] },
+// Left face
+Vertex { position: [-1.0, -1.0, -1.0], tex_coords: [1.0, 0.0] },
+Vertex { position: [-1.0, -1.0,  1.0], tex_coords: [1.0, 1.0] },
+Vertex { position: [-1.0,  1.0,  1.0], tex_coords: [0.0, 1.0] },
+Vertex { position: [-1.0,  1.0, -1.0], tex_coords: [0.0, 0.0] },
 ];
 
 pub const INDICES: &[u16] = &[

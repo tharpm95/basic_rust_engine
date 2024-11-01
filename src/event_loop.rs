@@ -142,13 +142,7 @@ pub fn handle_event_loop(
                 // Log every 1000 frames
                 if log_frame_count % 1000 == 0 {
                     println!("Rendering loop executed."); // Log message added here
-                    println!("Total Vertices: {}, Total Indices: {}", total_vertices.len(), total_indices.len());
                     println!("Dynamic Vertex Buffer Size: {}, Dynamic Index Buffer Size: {}", total_vertices_bytes, total_indices_bytes);
-
-                    // Log texture coordinates for debugging
-                    // for vertex in &total_vertices {
-                    //     println!("Vertex Position: {:?}, Texture Coordinates: {:?}", vertex.position, vertex.tex_coords);
-                    // }
                 }
 
                 let mut dynamic_vertex_buffer_size = dynamic_vertex_buffer_size.lock().unwrap();
