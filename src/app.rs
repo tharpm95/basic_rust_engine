@@ -45,7 +45,14 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     });
 
     // Use the Texture module to load the texture
-    let texture = Texture::from_image(&device, &queue, "P:\\Code\\mutetra\\src\\images\\color.png");
+    let texture = Texture::from_images(&device, &queue, [
+        "src/images/pos_x.png",
+        "src/images/neg_x.png",
+        "src/images/pos_y.png",
+        "src/images/neg_y.png",
+        "src/images/pos_z.png",
+        "src/images/neg_z.png", // Corrected path
+    ]); // Adjust the paths as necessary
 
     let uniforms = Uniforms::new(); // Removed unnecessary mut
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -71,7 +78,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
+                    view_dimension: wgpu::TextureViewDimension::Cube, // Updated to Cube
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 },
                 count: None,
@@ -88,7 +95,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
 
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &bind_group_layout,
-        entries: &[
+        entries: &[ 
             wgpu::BindGroupEntry {
                 binding: 0,
                 resource: uniform_buffer.as_entire_binding(),

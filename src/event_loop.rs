@@ -37,7 +37,14 @@ pub fn handle_event_loop(
     let dynamic_index_buffer_size = Arc::new(Mutex::new(1024 * 1024 * std::mem::size_of::<u16>() as u64));
 
     // Load the texture once
-    let _texture = get_texture(&device, &queue, "src/images/color.png"); // Adjust the path as necessary
+    let _texture = get_texture(&device, &queue, [
+        "src/images/pos_x.png",
+        "src/images/neg_x.png",
+        "src/images/pos_y.png",
+        "src/images/neg_y.png",
+        "src/images/pos_z.png",
+        "src/images/neg_z.png",
+    ]); // Adjust the paths as necessary
 
     let mut log_frame_count = 0; // Frame counter for logging
 
