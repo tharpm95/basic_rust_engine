@@ -37,8 +37,9 @@ impl Camera {
     }
 
     pub fn process_mouse_movement(&mut self, xoffset: f32, yoffset: f32, sensitivity: f32) {
-        self.yaw += xoffset * sensitivity;
-        self.pitch += yoffset * sensitivity;
+        let adjusted_sensitivity = sensitivity * 0.5; // Reduce sensitivity for smoother movement
+        self.yaw += xoffset * adjusted_sensitivity;
+        self.pitch += yoffset * adjusted_sensitivity;
 
         if self.pitch > 89.0f32.to_radians() {
             self.pitch = 89.0f32.to_radians();
