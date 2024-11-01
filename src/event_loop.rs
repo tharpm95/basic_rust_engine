@@ -37,7 +37,7 @@ pub fn handle_event_loop(
     let dynamic_index_buffer_size = Arc::new(Mutex::new(1024 * 1024 * std::mem::size_of::<u16>() as u64));
 
     // Load the texture once
-    let _texture = get_texture(&device, &queue, "src/images/dirt/dirt.png"); // Adjust the path as necessary
+    let _texture = get_texture(&device, &queue, "src/images/color.png"); // Adjust the path as necessary
 
     let mut log_frame_count = 0; // Frame counter for logging
 
@@ -203,7 +203,7 @@ pub fn handle_event_loop(
                             view: &depth_texture_view,
                             depth_ops: Some(wgpu::Operations { 
                                 load: wgpu::LoadOp::Clear(1.0),
-                                store: true
+                                store: false
                             }),
                             stencil_ops: None,
                         }),

@@ -45,7 +45,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     });
 
     // Use the Texture module to load the texture
-    let texture = Texture::from_image(&device, &queue, "P:\\Code\\mutetra\\src\\images\\dirt\\dirt.png");
+    let texture = Texture::from_image(&device, &queue, "P:\\Code\\mutetra\\src\\images\\color.png");
 
     let uniforms = Uniforms::new(); // Removed unnecessary mut
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

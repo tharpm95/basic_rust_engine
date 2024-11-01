@@ -102,4 +102,11 @@ The chunk centered at (0,0) appears more normal, but tearing artifacts are still
 In the surrounding chunks, the textures appear stretched in one direction, with pixels from the edges being dragged across the entire face of the cube.
 These observations suggest that while the changes improved the situation, further adjustments may be needed to fully resolve the tearing and stretching issues.
 
+pub fn update_model(&mut self) {
+        // Set the model matrix to identity to prevent any rotation
+        self.model = Matrix4::identity().into();
+    }
+
+    I want to focus on the model updates in unforms.rs Its rotating the texture still even though we tried to make it not rotate it
+
 Try to solve the problem
