@@ -2,6 +2,8 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
+use log::info; // Import the log macro
+use env_logger; // Import the env_logger crate
 
 mod app;
 mod camera;
@@ -14,6 +16,11 @@ mod texture; // Declare the texture module
 mod event_loop; // Declare the event_loop module
 
 fn main() {
+    // Initialize the logger
+    env_logger::init();
+
+    info!("Application started."); // Log message added here
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let monitor = window.primary_monitor();

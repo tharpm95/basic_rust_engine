@@ -11,7 +11,6 @@ use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
 use crate::texture::get_texture; // Import the get_texture function
 use wgpu::util::DeviceExt; // Import DeviceExt for create_buffer_init
-use log::{info}; // Import logging macros
 
 pub fn handle_event_loop(
     event_loop: winit::event_loop::EventLoop<()>,
@@ -39,6 +38,8 @@ pub fn handle_event_loop(
 
     // Load the texture once
     let _texture = get_texture(&device, &queue, "src/images/dirt/dirt.png"); // Adjust the path as necessary
+
+    let mut log_frame_count = 0; // Frame counter for logging
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -91,6 +92,8 @@ pub fn handle_event_loop(
                 _ => {}
             },
             Event::RedrawRequested(_) => {
+                log_frame_count += 1; // Increment log frame counter
+
                 // Update camera based on input
                 let move_amount = 0.05;
                 let mut camera = camera.lock().unwrap();
@@ -118,7 +121,7 @@ pub fn handle_event_loop(
                 update_world(&camera, &mut world);
                 
                 let mut total_vertices: Vec<Vertex> = vec![];
-                let mut total_indices = vec![];
+                let mut total_indices: Vec<u16> = vec![];
                 let mut index_offset: u16 = 0; // Changed back to u16
 
                 for chunk in world.chunks.values() {
@@ -136,9 +139,17 @@ pub fn handle_event_loop(
                 let total_vertices_bytes = (total_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
                 let total_indices_bytes = (total_indices.len() * std::mem::size_of::<u16>()) as u64;
 
-                // Log the sizes of vertices and indices
-                info!("Total Vertices: {}, Total Indices: {}", total_vertices.len(), total_indices.len());
-                info!("Dynamic Vertex Buffer Size: {}, Dynamic Index Buffer Size: {}", total_vertices_bytes, total_indices_bytes);
+                // Log every 1000 frames
+                if log_frame_count % 1000 == 0 {
+                    println!("Rendering loop executed."); // Log message added here
+                    println!("Total Vertices: {}, Total Indices: {}", total_vertices.len(), total_indices.len());
+                    println!("Dynamic Vertex Buffer Size: {}, Dynamic Index Buffer Size: {}", total_vertices_bytes, total_indices_bytes);
+
+                    // Log texture coordinates for debugging
+                    // for vertex in &total_vertices {
+                    //     println!("Vertex Position: {:?}, Texture Coordinates: {:?}", vertex.position, vertex.tex_coords);
+                    // }
+                }
 
                 let mut dynamic_vertex_buffer_size = dynamic_vertex_buffer_size.lock().unwrap();
                 let mut dynamic_vertex_buffer = dynamic_vertex_buffer.lock().unwrap();

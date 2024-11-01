@@ -74,14 +74,6 @@ Reviewing the rendering pipeline settings.
 Ensuring that double buffering is correctly implemented.
 Investigating other synchronization methods.
 
-Do not try to change filters on the sampler, we already tried that.
-Do not try to change the rotation speed on the camera with update_model, we already tried that.
-Do not attempt to resolve the texture tearing issue in your application by implementing a sorting mechanism for rendering chunks based on their distance from the camera, we already tried that.
-Do not attempt to change the control flow from ControlFlow::Poll to ControlFlow::WaitUntil, we already tried that.
-Do not attempt to change present_mode: wgpu::PresentMode::Fifo, to present_mode: wgpu::PresentMode::Mailbox, we already tried that.
-
-Nothing that I have described above should be tried as a solution. We need to find something that will fix the problem.
-
 What I realized was happening is that the texture on the face of the cubes is rotating. Why? I dont want any rotation of textures at all whatsoever.
 
 Make it so that the textures dont rotate.
@@ -92,6 +84,14 @@ Added Import for Rad: I added the necessary import for Rad in the src/uniforms.r
 
 These changes did not fix the problem. They were implemented to ensure that the textures remain static and do not rotate during rendering and did not fix the problem.
 
-Upon closer examination, it appears the textures are rotating, eiter that, or there is another cube with a rotated texture trying to render on top of the same cube. Like there could be more than one cube trying to be rendered at a time for whatever reason.
+Upon closer examination, it appears the textures are rotating, either that, or there is another cube with a rotated texture trying to render on top of the same cube. Like there could be more than one cube trying to be rendered at a time for whatever reason. Its like an entire sheet of textures overlaps with another sheet. It look strange. Its hard to explain. But why would they be rotating at all? Something is causing the textures to change orientation.
+
+Do not try to change filters on the sampler, we already tried that.
+Do not try to change the rotation speed on the camera with update_model, we already tried that.
+Do not attempt to resolve the texture tearing issue in your application by implementing a sorting mechanism for rendering chunks based on their distance from the camera, we already tried that.
+Do not attempt to change the control flow from ControlFlow::Poll to ControlFlow::WaitUntil, we already tried that.
+Do not attempt to change present_mode: wgpu::PresentMode::Fifo, to present_mode: wgpu::PresentMode::Mailbox, we already tried that.
+
+Nothing that I have described above should be tried as a solution. We need to find something that will fix the problem.
 
 Try to solve the problem

@@ -34,7 +34,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Fifo,
+        present_mode: wgpu::PresentMode::Mailbox, // Retaining original present mode
     };
 
     surface.configure(&device, &config);
@@ -55,7 +55,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
     });
 
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        entries: &[
+        entries: &[ 
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
