@@ -161,14 +161,18 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
             depth_write_enabled: true,
             depth_compare: wgpu::CompareFunction::Less,
             stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
+            bias: wgpu::DepthBiasState {
+                constant: 0,
+                slope_scale: 0.0,
+                clamp: 0.0,
+            },
         }),
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
     });
 
     let camera = Camera::new();
-    let mut world = World::new(4); // Set the chunk size here and make world mutable
+    let mut world = World::new(8); // Increased chunk size to 8
     update_world(&camera, &mut world);
 
     let dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64; // Removed unnecessary mut

@@ -11,6 +11,7 @@ use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
 use crate::texture::get_texture; // Import the get_texture function
 use wgpu::util::DeviceExt; // Import DeviceExt for create_buffer_init
+use log::{info}; // Import logging macros
 
 pub fn handle_event_loop(
     event_loop: winit::event_loop::EventLoop<()>,
@@ -118,7 +119,7 @@ pub fn handle_event_loop(
                 
                 let mut total_vertices: Vec<Vertex> = vec![];
                 let mut total_indices = vec![];
-                let mut index_offset = 0;
+                let mut index_offset: u16 = 0; // Changed back to u16
 
                 for chunk in world.chunks.values() {
                     total_vertices.extend(&chunk.vertices);
@@ -126,14 +127,18 @@ pub fn handle_event_loop(
                     let indices: Vec<u16> = chunk
                         .indices
                         .iter()
-                        .map(|i| *i + index_offset as u16)
+                        .map(|i| *i + index_offset) // Keep as u16
                         .collect();
-                    index_offset += chunk.vertices.len() as u16;
+                    index_offset += chunk.vertices.len() as u16; // Keep as u16
                     total_indices.extend(indices);
                 }
 
                 let total_vertices_bytes = (total_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
                 let total_indices_bytes = (total_indices.len() * std::mem::size_of::<u16>()) as u64;
+
+                // Log the sizes of vertices and indices
+                info!("Total Vertices: {}, Total Indices: {}", total_vertices.len(), total_indices.len());
+                info!("Dynamic Vertex Buffer Size: {}, Dynamic Index Buffer Size: {}", total_vertices_bytes, total_indices_bytes);
 
                 let mut dynamic_vertex_buffer_size = dynamic_vertex_buffer_size.lock().unwrap();
                 let mut dynamic_vertex_buffer = dynamic_vertex_buffer.lock().unwrap();

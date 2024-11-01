@@ -854,6 +854,7 @@ dependencies = [
  "cgmath",
  "image",
  "lazy_static",
+ "log",
  "pollster",
  "wgpu",
  "winit",
