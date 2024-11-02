@@ -1,15 +1,17 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "mutetra"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "mutetra"
 path = "src/main.rs"
 
 [dependencies]
-wgpu = "0.12"
-winit = "0.26"
+wgpu = "23.0.0"
+winit = "0.30.5"
 pollster = "0.2"
 cgmath = "0.18"
 bytemuck = { version = "1.19", features = ["derive"] }
@@ -17,3 +19,4 @@ image = "0.24"
 lazy_static = "1.4"  # Added lazy_static dependency
 log = "0.4"  # Add the log crate for logging functionality
 env_logger = "0.10"  # Add the env_logger crate for logging
+raw-window-handle = "0.6"  # Added raw_window_handle dependency

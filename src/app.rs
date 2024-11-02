@@ -2,20 +2,25 @@ use std::sync::{Arc, Mutex};
 use wgpu::util::DeviceExt;
 use winit::{
     event_loop::EventLoop,
+    window::Window,
 };
-
 use crate::camera::Camera;
 use crate::world::World;
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
 use crate::world_update::update_world;
 use crate::texture::Texture;
-use crate::event_loop::handle_event_loop; // Correctly import the handle_event_loop function
+use crate::event_loop::handle_event_loop;
 
-pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
+pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let size = window.inner_size();
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
-    let surface = unsafe { instance.create_surface(&window) };
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+
+    // Create a raw window handle
+    // let raw_window_handle = window.raw_window_handle(); // Ensure this is called directly on the window
+    let cloned_window = window.clone();
+    let surface_result = instance.create_surface(&cloned_window);
+    let surface = surface_result.expect("Failed to create surface");
 
     let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::default(),
@@ -23,38 +28,45 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         force_fallback_adapter: false,
     }).await.unwrap();
 
+    // Request the device before using it
     let (device, queue) = adapter
         .request_device(&wgpu::DeviceDescriptor::default(), None)
         .await
         .unwrap();
 
-    let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
-    let config = wgpu::SurfaceConfiguration { // Removed unnecessary mut
+    // Updated method call with width and height
+    let swapchain_format = wgpu::TextureFormat::Bgra8Unorm; // Change this to your desired format
+
+    let formats: Vec<wgpu::TextureFormat> = vec![wgpu::TextureFormat::Depth32Float];
+
+    let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Mailbox, // Retaining original present mode
+        present_mode: wgpu::PresentMode::Mailbox,
+        alpha_mode: wgpu::CompositeAlphaMode::Auto,
+        desired_maximum_frame_latency: 1,
+        view_formats: formats,
     };
 
-    surface.configure(&device, &config);
+    surface.configure(&device, &config); // Ensure device is defined
 
-    let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
     });
 
-    // Use the Texture module to load the texture
-    let texture = Texture::from_images(&device, &queue, [
+    let texture = Texture::from_images(&device, &queue, [ // Ensure queue is defined
         "src/images/pos_x.png",
-        "src/images/neg_x.png",
-        "src/images/pos_y.png",
         "src/images/neg_y.png",
+        "src/images/pos_y.png",
+        "src/images/neg_z.png",
         "src/images/pos_z.png",
-        "src/images/neg_z.png", // Corrected path
-    ]); // Adjust the paths as necessary
+        "src/images/neg_x.png",
+    ]);
 
-    let uniforms = Uniforms::new(); // Removed unnecessary mut
+    let uniforms = Uniforms::new();
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Uniform Buffer"),
         contents: bytemuck::cast_slice(&[uniforms]),
@@ -78,7 +90,7 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::Cube, // Updated to Cube
+                    view_dimension: wgpu::TextureViewDimension::Cube,
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
                 },
                 count: None,
@@ -112,7 +124,9 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         label: Some("uniform_texture_bind_group"),
     });
 
-    // Create a depth texture
+    let default_format = wgpu::TextureFormat::Depth32Float; // or whichever format is appropriate
+    let view_formats = [default_format]; // Create a single-entry array
+
     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("Depth Texture"),
         size: wgpu::Extent3d {
@@ -123,8 +137,9 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Depth32Float,
+        format: default_format,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &view_formats, // Reference the slice
     });
 
     let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -140,21 +155,23 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: "vs_main",
+            entry_point: Some("vs_main"), // Added missing field
             buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
                 step_mode: wgpu::VertexStepMode::Vertex,
                 attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2],
             }],
+            compilation_options: wgpu::PipelineCompilationOptions::default(), // Added missing field
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
-            entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
+            entry_point: Some("fs_main"), // Added missing field
+            compilation_options: wgpu::PipelineCompilationOptions::default(), // Added missing field
+            targets: &[Some(wgpu::ColorTargetState {
                 format: config.format,
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
-            }],
+            })],
         }),
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -176,14 +193,15 @@ pub async fn run(event_loop: EventLoop<()>, window: winit::window::Window) {
         }),
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
+        cache: None, // Added missing field
     });
 
     let camera = Camera::new();
-    let mut world = World::new(8); // Increased chunk size to 8
+    let mut world = World::new(8);
     update_world(&camera, &mut world);
 
-    let dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64; // Removed unnecessary mut
-    let dynamic_index_buffer_size = 1024 * 1024 * std::mem::size_of::<u16>() as u64; // Removed unnecessary mut
+    let dynamic_vertex_buffer_size = 1024 * 1024 * std::mem::size_of::<Vertex>() as u64;
+    let dynamic_index_buffer_size = 1024 * 1024 * std::mem::size_of::<u16>() as u64;
 
     let dynamic_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Dynamic Vertex Buffer"),

@@ -36,6 +36,7 @@ impl Texture {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[], // Pass an empty slice
         });
 
         for (i, rgba) in rgba_images.iter().enumerate() {
@@ -54,8 +55,8 @@ impl Texture {
                 rgba,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * rgba.width()),
-                    rows_per_image: std::num::NonZeroU32::new(rgba.height()),
+                    bytes_per_row: Some(4 * rgba.width()), // Change to Option<u32>
+                    rows_per_image: Some(rgba.height()), // Change to Option<u32>
                 },
                 wgpu::Extent3d {
                     width: rgba.width(),
@@ -79,7 +80,7 @@ impl Texture {
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: None,
-            anisotropy_clamp: std::num::NonZeroU8::new(16),
+            anisotropy_clamp: 16, // Change to u16
             border_color: None,
             label: Some("Texture Sampler"),
         });
