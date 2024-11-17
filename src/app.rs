@@ -16,8 +16,6 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
     let size = window.inner_size();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
-    // Create a raw window handle
-    // let raw_window_handle = window.raw_window_handle(); // Ensure this is called directly on the window
     let cloned_window = window.clone();
     let surface_result = instance.create_surface(&cloned_window);
     let surface = surface_result.expect("Failed to create surface");
@@ -28,16 +26,12 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         force_fallback_adapter: false,
     }).await.unwrap();
 
-    // Request the device before using it
     let (device, queue) = adapter
         .request_device(&wgpu::DeviceDescriptor::default(), None)
         .await
         .unwrap();
 
-    // Updated method call with width and height
-    let swapchain_format = wgpu::TextureFormat::Bgra8Unorm; // Change this to your desired format
-
-    let formats: Vec<wgpu::TextureFormat> = vec![wgpu::TextureFormat::Depth32Float];
+    let swapchain_format = wgpu::TextureFormat::Bgra8Unorm;
 
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -47,17 +41,17 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         present_mode: wgpu::PresentMode::Mailbox,
         alpha_mode: wgpu::CompositeAlphaMode::Auto,
         desired_maximum_frame_latency: 1,
-        view_formats: formats,
+        view_formats: vec![],
     };
 
-    surface.configure(&device, &config); // Ensure device is defined
+    surface.configure(&device, &config);
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("Shader"),
         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
     });
 
-    let texture = Texture::from_images(&device, &queue, [ // Ensure queue is defined
+    let texture = Texture::from_images(&device, &queue, [
         "src/images/pos_x.png",
         "src/images/neg_y.png",
         "src/images/pos_y.png",
@@ -124,9 +118,6 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         label: Some("uniform_texture_bind_group"),
     });
 
-    let default_format = wgpu::TextureFormat::Depth32Float; // or whichever format is appropriate
-    let view_formats = [default_format]; // Create a single-entry array
-
     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("Depth Texture"),
         size: wgpu::Extent3d {
@@ -137,9 +128,9 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: default_format,
+        format: wgpu::TextureFormat::Depth32Float,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        view_formats: &view_formats, // Reference the slice
+        view_formats: &[],
     });
 
     let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -155,18 +146,18 @@ pub async fn run(event_loop: EventLoop<()>, window: Arc<Window>) {
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: Some("vs_main"), // Added missing field
+            entry_point: Some("vs_main"),
             buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
                 step_mode: wgpu::VertexStepMode::Vertex,
                 attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2],
             }],
-            compilation_options: wgpu::PipelineCompilationOptions::default(), // Added missing field
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
-            entry_point: Some("fs_main"), // Added missing field
-            compilation_options: wgpu::PipelineCompilationOptions::default(), // Added missing field
+            entry_point: Some("fs_main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
             targets: &[Some(wgpu::ColorTargetState {
                 format: config.format,
                 blend: Some(wgpu::BlendState::REPLACE),
