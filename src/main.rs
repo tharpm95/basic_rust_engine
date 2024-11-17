@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 // Implement your specific creation logic here
-fn some_window_initialization_function(event_loop: &EventLoop<()>) -> Result<Window, Box<dyn Error>> {
+fn some_window_initialization_function(_event_loop: &EventLoop<()>) -> Result<Window, Box<dyn Error>> {
     // Replace logic with valid means of window creation within the given framework restrictions
     // Example placeholder logic
     Err(Box::new(SomeErrorType::DefaultError))

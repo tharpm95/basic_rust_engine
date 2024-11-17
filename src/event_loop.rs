@@ -317,5 +317,5 @@ pub fn handle_event_loop(
         window,
     };
 
-    event_loop.run_app(&mut app_handler);
+    let _ = event_loop.run_app(&mut app_handler);
 }
