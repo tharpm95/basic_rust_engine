@@ -1,10 +1,20 @@
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use log::info;
 use env_logger;
 use std::error::Error;
+
+mod app;
+mod camera;
+mod event_loop;
+mod vertex;
+mod uniforms;
+mod chunk;
+mod world;
+mod world_update;
+mod texture;
 
 #[derive(Default)]
 struct App {
@@ -31,17 +41,12 @@ impl ApplicationHandler for App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Initialize the logger
-    env_logger::init();
-
-    info!("Application started.");
-
     // Correctly create the event loop
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::default();
 
     // Run the application
-    event_loop.run_app(&mut app);
+    let _ = event_loop.run_app(&mut app);
 
     Ok(())
 }
