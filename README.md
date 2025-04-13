@@ -1,6 +1,6 @@
 # Project Overview
 
-Basic Rust Engine - Some basic components needed to build an engine in Rust
+Basic Rust Engine - Some basic components needed to build a graphics engine in Rust
 
 ## Getting Started
 
